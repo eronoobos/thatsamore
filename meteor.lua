@@ -6,6 +6,8 @@ local sqrts = {}
 local gaussians = {}
 local angles = {}
 
+local metalMap
+
 ------------------------------------------------------------------------------
 
 local AttributeDict = {
@@ -143,18 +145,15 @@ local function EndCommand(command)
   SendToUnsynced("CompleteCommand", command)
 end
 
-local function ClearMetalSquare(x, z, size)
-  local halfSize = mCeil(size / 2)
-  for ix = x-halfSize, x+halfSize do
-    for iz = z-halfSize, z+halfSize do
-      spSetMetalAmount(ix, iz, 0)
-    end
-  end
+local function spSetMetalAmount(x, z, mAmount)
+  if not metalMap then return end
+  metalMap:setPixel( x, metalMapRuler.height-z-1, mAmount, 0, 0, 255 )
 end
 
 local function ClearMetalMap()
-  for x = 0, Game.mapSizeX/16 do
-    for z = 0, Game.mapSizeZ/16 do
+  metalMap = love.image.newImageData( metalMapRuler.width, metalMapRuler.height )
+  for x = 0, metalMapRuler.width-1 do
+    for z = 0, metalMapRuler.height-1 do
       spSetMetalAmount(x, z, 0)
     end
   end
@@ -545,8 +544,6 @@ function World:Clear()
   self.renderers = {}
   self.metalMeteorCount = 0
   self.geothermalMeteorCount = 0
-  SendToUnsynced("ClearMeteors")
-  SendToUnsynced("RenderStatus", "none")
 end
 
 function World:Save(name)
@@ -559,12 +556,12 @@ end
 
 function World:Load(luaStr)
   self:Clear()
+  print(luaStr:len())
   local loadWorld = loadstring(luaStr)
   local newWorld = loadWorld()
   for k, v in pairs(newWorld) do
     self[k] = v
   end
-  SendToUnsynced("ClearMeteors")
   for i, m in pairs(self.meteors) do
     local newm = Meteor(self)
     for k, v in pairs(m) do
@@ -575,7 +572,6 @@ function World:Load(luaStr)
     m = newm
     m:BuildNoise()
     self.meteors[i] = m
-    m:Pass()
   end
   self.heightBuf.changesPending = true
   spEcho("world loaded with " .. #self.meteors .. " meteors")
@@ -615,7 +611,6 @@ end
 function World:AddMeteor(sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, doNotMirror)
   local m = Meteor(self, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal)
   tInsert(self.meteors, m)
-  m:Pass()
   if self.mirror ~= "none" and not doNotMirror then
     local nsx, nsz
     if self.mirror == "reflectionalx" then
@@ -637,6 +632,11 @@ end
 
 function World:RenderAttributes(uiCommand, mapRuler)
   mapRuler = mapRuler or heightMapRuler
+  if mapRuler == fullMapRuler then
+    doNotStore = true
+    ClearSpeedupStorage()
+    self.heightBuf = nil
+  end
   local renderer = Renderer(self, mapRuler, 8000, "Attributes", uiCommand)
   tInsert(self.renderers, renderer)
 end
@@ -835,14 +835,9 @@ function Renderer:Frame()
   local progress = self:FrameFunc()
   if progress then
     self.progress = (self.progress or 0) + progress
-    SendToUnsynced("RenderStatus", self.renderType, self.progress, self.totalProgress)
-  else
-    SendToUnsynced("RenderStatus", "none")
   end
   if self.progress > self.totalProgress or not progress then
-    -- spEcho(self.progress .. " / " .. self.totalProgress)
     self:Finish()
-    SendToUnsynced("RenderStatus", "none")
   end
 end
 
@@ -852,6 +847,20 @@ function Renderer:Finish()
   local timeDiff = spGetGameFrame() - self.startFrame
   spEcho(self.renderType .. " (" .. self.mapRuler.width .. "x" .. self.mapRuler.height .. ") rendered in " .. timeDiff .. " seconds")
   self.complete = true
+end
+
+function Renderer:PrepareDraw()
+  local renderRatio = self.progress / self.totalProgress
+  self.renderFgRGB = { r = (1-renderRatio)*255, g = renderRatio*255, b = 0 }
+  self.renderProgressString = tostring(mFloor(renderRatio * 100)) .. "%" --renderProgress .. "/" .. renderTotal
+  local viewX, viewY = displayMapRuler.width, displayMapRuler.height
+  local rrr = renderRatioRect
+  local x1, y1 = rrr.x1*viewX, rrr.y1*viewY
+  local x2, y2 = rrr.x2*viewX, rrr.y2*viewY
+  local dx = x2 - x1
+  local dy = y2 - y1
+  self.renderBgRect = { x1 = x1-4, y1 = y1-4, x2 = x2+4, y2 = y2+4, w = dx+8, h = dy+8 }
+  self.renderFgRect = { x1 = x1, y1 = y1, x2 = x2, y2 = y1+(dx*renderRatio), w = dx*renderRatio, h = dy }
 end
 
 function Renderer:EmptyPreinit()
@@ -1072,13 +1081,15 @@ function Renderer:MetalInit()
   FWrite("\t}\n}")
   FWriteClose()
   spEcho("wrote metal to map and config lua")
-  FWriteOpen("metal", "pbm")
-  FWrite("P6 " .. tostring(self.mapRuler.width) .. " " .. tostring(self.mapRuler.height) .. " 255 ")
-  self.zeroTwoChars = string.char(0) .. string.char(0)
-  self.blackThreeChars = string.char(0) .. string.char(0) .. string.char(0)
+  -- FWriteOpen("metal", "pbm")
+  -- FWrite("P6 " .. tostring(self.mapRuler.width) .. " " .. tostring(self.mapRuler.height) .. " 255 ")
+  -- self.zeroTwoChars = string.char(0) .. string.char(0)
+  -- self.blackThreeChars = string.char(0) .. string.char(0) .. string.char(0)
+  metalMap:encode("mm.png")
 end
 
 function Renderer:MetalFrame()
+  --[[
   local pixelsThisFrame = mMin(self.pixelsPerFrame, self.pixelsToRenderCount)
   local pMin = self.totalPixels - self.pixelsToRenderCount
   local pMax = pMin + pixelsThisFrame
@@ -1098,11 +1109,13 @@ function Renderer:MetalFrame()
   end
   self.pixelsToRenderCount = self.pixelsToRenderCount - pixelsThisFrame - 1
   return pixelsThisFrame + 1
+  ]]--
+  return self.totalPixels
 end
 
 function Renderer:MetalFinish()
-  FWriteClose()
-  spEcho("metal File sent")
+  -- FWriteClose()
+  -- spEcho("metal File sent")
 end
 
 --------------------------------------
@@ -1280,6 +1293,7 @@ function Crater:AttributePixel(x, y)
       local rayHeight = mMax(math.sin(rayWidthMult * angle) - 0.75, 0) * heightWobbly * rimRatio
       if rayHeight > 0.1 then return 6 end
     end
+    if height > 0 and mRandom() < (height / rimHeight) then return 3 end
     return 1
   else
     local alpha = 0
@@ -1315,8 +1329,10 @@ end
 
 --------------------------------------
 
-function Meteor:Pass()
-  SendToUnsynced("Meteor", self.sx, self.sz, self.diameterImpactor, self.velocityImpactKm, self.angleImpact, self.densityImpactor, self.age, self.craterRadius, self.metal, self.geothermal)
+function Meteor:PrepareDraw()
+  self.rgb = { 0, (1-(self.age/100))*255, (self.age/100)*255 }
+  self.dispX, self.dispY = displayMapRuler:XZtoXY(self.sx, self.sz)
+  self.dispCraterRadius = mCeil(self.craterRadius / displayMapRuler.elmosPerPixel)
 end
 
 function Meteor:BuildNoise()

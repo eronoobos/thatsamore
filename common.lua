@@ -154,6 +154,19 @@ function FReadOpen(name, ext, endFunc)
   currentReadFilename = outDir .. currentReadFilename
   print("reading from " .. currentReadFilename)
   currentReadFile = assert(io.open(currentReadFilename,"r"), "Unable to read from "..currentReadFilename)
+  while true do
+    local line = currentReadFile:read()
+    if line then
+      readBuffer = readBuffer .. line .. "\n"
+    else
+      break
+    end
+  end
+  currentReadFile:close()
+  currentReadFile = nil
+  currentReadFilename = nil
+  readEndFunc(readBuffer)
+  readBuffer = ""
 end
 
 function FReadLine()
@@ -221,6 +234,8 @@ function InterpretCommand(msg, myWorld)
       myWorld:RenderHeightImage(uiCommand, L3DTMapRuler)
     elseif commandWord == "heightfull" then
       myWorld:RenderHeightImage(uiCommand, fullMapRuler)
+    elseif commandWord == "attributesfull" then
+      myWorld:RenderAttributes(uiCommand, fullMapRuler)
     elseif commandWord == "metal" then
       myWorld:RenderMetal(uiCommand)
     elseif commandWord == "features" then
@@ -244,10 +259,6 @@ function InterpretCommand(msg, myWorld)
       myWorld:Save(words[3])
     elseif commandWord == "load" then
       FReadOpen("world" .. (words[3] or ""), "lua", function(str) myWorld:Load(str) end)
-    elseif commandWord == "fileline" then
-      FReadLine(uiCommand:sub(10))
-    elseif commandWord == "fileend" then
-      FReadClose()
     elseif commandWord == "renderall" then
       myWorld:RenderFeatures()
       myWorld:RenderMetal()
@@ -258,8 +269,23 @@ function InterpretCommand(msg, myWorld)
       myWorld:RenderMetal()
       myWorld:RenderAttributes(nil, L3DTMapRuler)
       myWorld:RenderHeightImage(uiCommand, L3DTMapRuler)
+    elseif commandWord == "renderallfull" then
+      myWorld:RenderFeatures()
+      myWorld:RenderMetal()
+      myWorld:RenderAttributes(nil, fullMapRuler)
+      myWorld:RenderHeightImage(uiCommand, fullMapRuler)
     end
   end
+end
+
+function RectXYWH(rect)
+  if not rect then return end
+  love.graphics.rectangle("fill", rect.x1, rect.y1, rect.w, rect.h)
+end
+
+function ColorRGB(rgb)
+  if not rgb then return end
+  love.graphics.setColor(rgb.r, rgb.g, rgb.b)
 end
 
 -- globals used here and to export:
@@ -268,4 +294,4 @@ heightMapRuler = MapRuler(nil, (Game.mapSizeX / Game.squareSize) + 1, (Game.mapS
 metalMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))
 L3DTMapRuler = MapRuler(4, (Game.mapSizeX / 4), (Game.mapSizeZ / 4))
 fullMapRuler = MapRuler(1)
-displayMapRuler = MapRuler(8, (Game.mapSizeX / 8), (Game.mapSizeZ / 8))
+displayMapRuler = MapRuler(10, (Game.mapSizeX / 10), (Game.mapSizeZ / 10))

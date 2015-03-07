@@ -4,6 +4,12 @@ local myWorld
 local keyPress = {}
 local mousePress = {}
 local commandBuffer
+local commandHistory = {}
+local commandHistoryPos = 1
+
+function love.conf(t)
+	t.identity = 'thatsamore'
+end
 
 function love.load()
 	myWorld = World(2.32, 1000)
@@ -23,10 +29,21 @@ function love.keypressed(key, isRepeat)
 	if key == "return" then
 		if commandBuffer then
 			InterpretCommand(commandBuffer, myWorld)
+			tInsert(commandHistory, commandBuffer)
 			commandBuffer = nil
 		else
 			commandBuffer = ""
 		end
+	elseif key == "backspace" then
+		if commandBuffer then
+			commandBuffer = commandBuffer:sub(1,-2)
+		end
+	elseif key == "up" then
+		commandHistoryPos = mMax(commandHistoryPos - 1, 1)
+		commandBuffer = commandHistory[commandHistoryPos]
+	elseif key == "down" then
+		commandHistoryPos = mMin(commandHistoryPos + 1, #commandHistory)
+		commandBuffer = commandHistory[commandHistoryPos]
 	end
 end
 
@@ -54,13 +71,9 @@ end
 local underscore = 0
 
 function love.draw()
-	if commandBuffer then
-		love.graphics.setColor(255,255,255)
-		love.graphics.print("$ " .. commandBuffer .. "_", 8, 8)
-		love.graphics.setColor(0,0,0)
-	end
 	if myWorld then
 		for i, m in pairs(myWorld.meteors) do
+			if not m.rgb then m:PrepareDraw() end
 			love.graphics.setColor(m.rgb[1], m.rgb[2], m.rgb[3])
 			love.graphics.circle("fill", m.dispX, m.dispY, m.dispCraterRadius, 8)
 			if m.metal then
@@ -72,8 +85,22 @@ function love.draw()
 				love.graphics.circle("fill", m.dispX, m.dispY, 6, 3)
 			end
 		end
+		local r = myWorld.renderers[1]
+		if r and r.renderBgRect then
+			ColorRGB(renderBgRGB)
+			RectXYWH(r.renderBgRect)
+			ColorRGB(r.renderFgRGB)
+			RectXYWH(r.renderFgRect)
+			love.graphics.setColor(255, 255, 255)
+			love.graphics.print(r.renderType, r.renderBgRect.x2, r.renderBgRect.y2)
+			if r.renderProgressString then love.graphics.print(r.renderProgressString, r.renderBgRect.x2, r.renderBgRect.y1) end
+		end
 	end
-	-- love.graphics.rectangle("fill", point.t*displayMult, displayMultHundred-point.r*displayMult, displayMult, displayMult)
+	if commandBuffer then
+		love.graphics.setColor(255,255,255)
+		love.graphics.print("$ " .. commandBuffer .. "_", 8, 8)
+		love.graphics.setColor(0,0,0)
+	end
 end
 
 function love.update(dt)
@@ -84,6 +111,8 @@ function love.update(dt)
 		  -- spEcho(renderer.renderType, "complete", #myWorld.renderers)
 		  tRemove(myWorld.renderers, 1)
 		  renderer = nil
+		else
+			renderer:PrepareDraw()
 		end
 	end
 	-- love.mouse.getX(), love.mouse.getY()

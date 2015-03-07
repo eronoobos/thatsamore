@@ -17,3 +17,6 @@ commandKeys = {
 	a = "attributes",
 	f = "heightfull",
 }
+
+renderRatioRect = { x1 = 0.25, y1 = 0.49, x2 = 0.75, y2 = 0.51 }
+renderBgRGB = { r = 0, g = 0, b = 128 }
