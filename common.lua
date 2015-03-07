@@ -1,0 +1,197 @@
+require "class"
+require "perlin"
+require "meteor"
+require "config"
+
+-- globals used here and to export:
+
+heightMapRuler = MapRuler(nil, (Game.mapSizeX / Game.squareSize) + 1, (Game.mapSizeZ / Game.squareSize) + 1)
+metalMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))
+L3DTMapRuler = MapRuler(4, (Game.mapSizeX / 4), (Game.mapSizeZ / 4))
+
+pi = math.pi
+twicePi = math.pi * 2
+piHalf = math.pi / 2
+piEighth = math.pi / 8
+piTwelfth = math.pi / 12
+piSixteenth = math.pi / 16
+twoSqrtTwo = 2 * math.sqrt(2)
+naturalE = math.exp(1)
+radiansPerAngle = math.pi / 180
+
+mSqrt = math.sqrt
+mRandom = math.random
+mMin = math.min
+mMax = math.max
+mAtan2 = math.atan2
+mExp = math.exp
+mCeil = math.ceil
+mFloor = math.floor
+mAbs = math.abs
+mMix = math.mix
+
+tInsert = table.insert
+tRemove = table.remove
+tSort = table.sort
+
+function mClamp(val, lower, upper)
+    assert(val and lower and upper, "not very useful error message here")
+    if lower > upper then lower, upper = upper, lower end -- swap if boundaries supplied the wrong way
+    return mMax(lower, mMin(upper, val))
+end
+
+function mSmoothstep(edge0, edge1, value)
+	if value <= edge0 then return 0 end
+	if value >= edge1 then return 1 end
+	local x = (value - edge0) / (edge1 - edge0)
+	local t = mClamp(x, 0, 1)
+	return t * t * (3 - 2 * t)
+end
+
+function mMix(x, y, a)
+	return x * (1-a) + y * a
+end
+
+function tRemoveRandom(fromTable)
+	return tRemove(fromTable, mRandom(1, #fromTable))
+end
+
+function tGetRandom(fromTable)
+	return fromTable[mRandom(1, #fromTable)]
+end
+
+-- simple duplicate, does not handle nesting
+function tDuplicate(sourceTable)
+	local duplicate = {}
+	for k, v in pairs(sourceTable) do
+		duplicate[k] = v
+	end
+	return duplicate
+end
+
+function splitIntoWords(s)
+  local words = {}
+  for w in s:gmatch("%S+") do tInsert(words, w) end
+  return words
+end
+
+function string:split( inSplitPattern, outResults )
+  if not outResults then
+    outResults = { }
+  end
+  local theStart = 1
+  local theSplitStart, theSplitEnd = string.find( self, inSplitPattern, theStart )
+  while theSplitStart do
+    table.insert( outResults, string.sub( self, theStart, theSplitStart-1 ) )
+    theStart = theSplitEnd + 1
+    theSplitStart, theSplitEnd = string.find( self, inSplitPattern, theStart )
+  end
+  table.insert( outResults, string.sub( self, theStart ) )
+  return outResults
+end
+
+function stringCapitalize(string)
+	local first = string:sub(1,1)
+	first = string.upper(first)
+	return first .. string:sub(2)
+end
+
+function DiceRoll(dice)
+  local n = 0
+  for d = 1, dice do
+    n = n + (mRandom() / dice)
+  end
+  return n
+end
+
+function NewSeed()
+  return mCeil(mRandom()*1000)
+end
+
+function pairsByKeys (t, f)
+  local a = {}
+  for n in pairs(t) do tInsert(a, n) end
+  tSort(a, f)
+  local i = 0      -- iterator variable
+  local iter = function ()   -- iterator function
+    i = i + 1
+    if a[i] == nil then return nil
+    else return a[i], t[a[i]]
+    end
+  end
+  return iter
+end
+
+function MinMaxRandom(minimum, maximum)
+  return (mRandom() * (maximum - minimum)) + minimum
+end
+
+function RandomVariance(variance)
+  return (1-variance) + (mRandom() * variance * 2)
+end
+
+function VaryWithinBounds(value, variance, minimum, maximum)
+  if not value then return nil end
+  return mMax(mMin(value*RandomVariance(variance), maximum), minimum)
+end
+
+function uint32little(n)
+  return string.char( n%256, (n%65536)/256, (n%16777216)/65536, n/16777216 )
+end
+
+function uint16little(n)
+  return string.char( n%256, (n%65536)/256 )
+end
+
+function uint16big(n)
+  return string.char( (n%65536)/256, n%256 )
+end
+
+function uint8(n)
+  return string.char( n%256 )
+end
+
+---
+
+function FReadOpen(name, ext, endFunc)
+  readEndFunc = endFunc
+  readBuffer = ""
+  currentReadFilename = (string.lower(string.gsub(Game.mapName, ".smf", "_")) .. name .. "." .. ext)
+  currentReadFilename = outDir .. currentReadFilename
+  print("reading from " .. currentReadFilename)
+  currentReadFile = assert(io.open(currentReadFilename,"r"), "Unable to read from "..currentReadFilename)
+end
+
+function FReadLine()
+  readBuffer = readBuffer .. currentReadFile:read() .. "\n"
+end
+
+function FReadClose()
+  currentReadFile:close()
+  currentReadFile = nil
+  currentReadFilename = nil
+  readEndFunc(readBuffer)
+  readBuffer = ""
+end
+
+function FWriteOpen(name, ext, mode)
+  name = name or ""
+  ext = ext or "txt"
+  mode = mode or "wb"
+  currentFilename = (string.lower(string.gsub(Game.mapName, ".smf", "_")) .. name .. "." .. ext)
+  currentFilename = outDir .. currentFilename
+  currentFile = assert(io.open(currentFilename,mode), "Unable to save to "..currentFilename)
+end
+
+function FWrite(...)
+  local send = ""
+  for i, str in ipairs({...}) do
+    send = send .. str
+  end
+  currentFile:write(send)
+end
+
+function FWriteClose()
+  currentFile:close()
+  print(currentFilename .. " written")
+end
