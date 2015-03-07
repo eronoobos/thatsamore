@@ -10,3 +10,10 @@ Game = {
 	mapHardness = 100,
 	mapName = "Loony.smf",
 }
+
+commandKeys = {
+	s = "shower 100",
+	h = "height",
+	a = "attributes",
+	f = "heightfull",
+}

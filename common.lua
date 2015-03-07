@@ -3,12 +3,6 @@ require "perlin"
 require "meteor"
 require "config"
 
--- globals used here and to export:
-
-heightMapRuler = MapRuler(nil, (Game.mapSizeX / Game.squareSize) + 1, (Game.mapSizeZ / Game.squareSize) + 1)
-metalMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))
-L3DTMapRuler = MapRuler(4, (Game.mapSizeX / 4), (Game.mapSizeZ / 4))
-
 pi = math.pi
 twicePi = math.pi * 2
 piHalf = math.pi / 2
@@ -195,3 +189,83 @@ function FWriteClose()
   currentFile:close()
   print(currentFilename .. " written")
 end
+
+function InterpretCommand(msg, myWorld)
+  if not msg then return end
+  if msg == "" then return end
+  msg = "loony " .. msg
+  local words = splitIntoWords(msg)
+  local where = words[1]
+  if where == "loony" then
+    local commandWord = words[2]
+    local uiCommand = string.sub(msg, 7)
+    if commandWord == "meteor" then
+      local radius = words[5] / 15
+      myWorld:AddMeteor(words[3], words[4], radius*2)
+    elseif commandWord == "shower" then
+      myWorld:MeteorShower(words[3], words[4], words[5], words[6], words[7], words[8], words[9], words[10], words[11], yesMare)
+    elseif commandWord == "clear" then
+      myWorld:Clear()
+    elseif commandWord == "blur" then
+      local radius = words[3] or 1
+      myWorld.heightBuf:Blur(radius, uiCommand)
+    elseif commandWord == "read" then
+      myWorld.heightBuf:Read()
+    elseif commandWord == "height" then
+      myWorld.heightBuf:SendFile(uiCommand)
+    elseif commandWord == "attributes" then
+      myWorld:RenderAttributes(uiCommand)
+    elseif commandWord == "attributesl3dt" then
+      myWorld:RenderAttributes(uiCommand, L3DTMapRuler)
+    elseif commandWord == "heightl3dt" then
+      myWorld:RenderHeightImage(uiCommand, L3DTMapRuler)
+    elseif commandWord == "heightfull" then
+      myWorld:RenderHeightImage(uiCommand, fullMapRuler)
+    elseif commandWord == "metal" then
+      myWorld:RenderMetal(uiCommand)
+    elseif commandWord == "features" then
+      myWorld:RenderFeatures(uiCommand)
+    elseif commandWord == "bypasstoggle" then
+      bypassSpring = not bypassSpring
+      spEcho("bypassSpring is now", tostring(bypassSpring))
+      SendToUnsynced("BypassSpring", tostring(bypassSpring))
+    elseif commandWord == "underlyingmaretoggle" then
+      yesMare = not yesMare
+      spEcho("yesMare is now", tostring(yesMare))
+    elseif commandWord == "mirror" then
+      myWorld.mirror = words[3]
+      spEcho("mirror: " .. myWorld.mirror)
+    elseif commandWord == "mirrornext" then
+      local mt = MirrorNames[myWorld.mirror]+1
+      if mt == #MirrorTypes+1 then mt = 1 end
+      myWorld.mirror = MirrorTypes[mt]
+      spEcho("mirror: " .. myWorld.mirror)
+    elseif commandWord == "save" then
+      myWorld:Save(words[3])
+    elseif commandWord == "load" then
+      FReadOpen("world" .. (words[3] or ""), "lua", function(str) myWorld:Load(str) end)
+    elseif commandWord == "fileline" then
+      FReadLine(uiCommand:sub(10))
+    elseif commandWord == "fileend" then
+      FReadClose()
+    elseif commandWord == "renderall" then
+      myWorld:RenderFeatures()
+      myWorld:RenderMetal()
+      myWorld:RenderAttributes()
+      myWorld.heightBuf:SendFile(uiCommand)
+    elseif commandWord == "renderalll3dt" then
+      myWorld:RenderFeatures()
+      myWorld:RenderMetal()
+      myWorld:RenderAttributes(nil, L3DTMapRuler)
+      myWorld:RenderHeightImage(uiCommand, L3DTMapRuler)
+    end
+  end
+end
+
+-- globals used here and to export:
+
+heightMapRuler = MapRuler(nil, (Game.mapSizeX / Game.squareSize) + 1, (Game.mapSizeZ / Game.squareSize) + 1)
+metalMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))
+L3DTMapRuler = MapRuler(4, (Game.mapSizeX / 4), (Game.mapSizeZ / 4))
+fullMapRuler = MapRuler(1)
+displayMapRuler = MapRuler(8, (Game.mapSizeX / 8), (Game.mapSizeZ / 8))
