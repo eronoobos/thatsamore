@@ -5,7 +5,7 @@ local keyPress = {}
 local mousePress = {}
 
 local commandKeys = {
-	s = "shower 10",
+	s = "shower 100",
 	h = "height",
 	a = "attributes",
 }

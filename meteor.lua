@@ -914,8 +914,8 @@ end
 function Renderer:Finish()
   self:FinishFunc()
   if not self.dontEndUiCommand then EndCommand(self.uiCommand) end
-  local frameDiff = spGetGameFrame() - self.startFrame
-  spEcho(self.renderType .. " (" .. self.mapRuler.width .. "x" .. self.mapRuler.height .. ") rendered in " .. frameDiff .. " frames")
+  local timeDiff = spGetGameFrame() - self.startFrame
+  spEcho(self.renderType .. " (" .. self.mapRuler.width .. "x" .. self.mapRuler.height .. ") rendered in " .. timeDiff .. " seconds")
   self.complete = true
 end
 
