@@ -14,7 +14,7 @@ naturalE = math.exp(1)
 radiansPerAngle = math.pi / 180
 
 mSqrt = math.sqrt
-mRandom = math.random
+mRandom = love.math.random --math.random
 mMin = math.min
 mMax = math.max
 mAtan2 = math.atan2
@@ -27,6 +27,8 @@ mMix = math.mix
 tInsert = table.insert
 tRemove = table.remove
 tSort = table.sort
+
+spEcho = print
 
 function mClamp(val, lower, upper)
     assert(val and lower and upper, "not very useful error message here")
@@ -150,7 +152,7 @@ end
 function FReadOpen(name, ext, endFunc)
   readEndFunc = endFunc
   readBuffer = ""
-  currentReadFilename = (string.lower(string.gsub(Game.mapName, ".smf", "_")) .. name .. "." .. ext)
+  currentReadFilename = name .. "." .. ext
   currentReadFilename = outDir .. currentReadFilename
   print("reading from " .. currentReadFilename)
   currentReadFile = assert(io.open(currentReadFilename,"r"), "Unable to read from "..currentReadFilename)
@@ -185,9 +187,11 @@ function FWriteOpen(name, ext, mode)
   name = name or ""
   ext = ext or "txt"
   mode = mode or "wb"
-  currentFilename = (string.lower(string.gsub(Game.mapName, ".smf", "_")) .. name .. "." .. ext)
+  currentFilename = name .. "." .. ext
   currentFilename = outDir .. currentFilename
   currentFile = assert(io.open(currentFilename,mode), "Unable to save to "..currentFilename)
+  -- currentFile, errorstr = love.filesystem.newFile( currentFilename, "w" )
+  -- i would use love.filesystem, except it's many times slower writing
 end
 
 function FWrite(...)
@@ -201,6 +205,12 @@ end
 function FWriteClose()
   currentFile:close()
   print(currentFilename .. " written")
+end
+
+MirrorTypes = { "reflectionalx", "reflectionalz", "rotational", "none" }
+MirrorNames = {}
+for i, name in pairs(MirrorTypes) do
+  MirrorNames[name] = i
 end
 
 function InterpretCommand(msg, myWorld)
@@ -244,7 +254,7 @@ function InterpretCommand(msg, myWorld)
       bypassSpring = not bypassSpring
       spEcho("bypassSpring is now", tostring(bypassSpring))
       SendToUnsynced("BypassSpring", tostring(bypassSpring))
-    elseif commandWord == "underlyingmaretoggle" then
+    elseif commandWord == "maretoggle" then
       yesMare = not yesMare
       spEcho("yesMare is now", tostring(yesMare))
     elseif commandWord == "mirror" then
@@ -286,6 +296,12 @@ end
 function ColorRGB(rgb)
   if not rgb then return end
   love.graphics.setColor(rgb.r, rgb.g, rgb.b)
+end
+
+function DistanceSq(x1, y1, x2, y2)
+  local dx = mAbs(x2 - x1)
+  local dy = mAbs(y2 - y1)
+  return (dx*dx) + (dy*dy)
 end
 
 -- globals used here and to export:

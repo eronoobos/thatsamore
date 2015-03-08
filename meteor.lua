@@ -45,12 +45,6 @@ for i, entry in pairs(AttributeDict) do
   AttributesByName[entry.name] = { index = i, rgb = aRGB, threechars = threechars}
 end
 
-local MirrorTypes = { "reflectionalx", "reflectionalz", "rotational", "none" }
-local MirrorNames = {}
-for i, name in pairs(MirrorTypes) do
-  MirrorNames[name] = i
-end
-
 -- for metal spot writing
 local metalPixelCoords = {
   [1] = { 0, 0 },
@@ -74,6 +68,7 @@ local WorldSaveBlackList = {
   "outValues",
   "renderers",
   "heightBuf",
+  "mirroredMeteor",
 }
 
 local WSBL = {}
@@ -89,7 +84,6 @@ end
 
 -- local functions:
 
-local spEcho = print
 local spGetGameFrame = love.timer.getTime
 
 local function SendToUnsynced(...)
@@ -340,11 +334,13 @@ end)
 
 -- Meteor stores data and does meteor impact model calculations
 -- meteor impact model equations based on http://impact.ese.ic.ac.uk/ImpactEffects/effects.pdf
-Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal)
+Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, mirroredMeteor)
+  print(sx, sz, age, mirroredMeteor)
   -- coordinates sx and sz are in spring coordinates (elmos)
   a.world = world
   if not sx then return end
   a.sx, a.sz = mFloor(sx), mFloor(sz)
+  a.mirroredMeteor = mirroredMeteor
 
   a.dispX, a.dispY = displayMapRuler:XZtoXY(a.sx, a.sz)
 
@@ -355,31 +351,6 @@ Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, an
   a.densityImpactor = densityImpactor or 8000
   a.age = age or 0
   a.ageRatio = a.age / 100
-
-  if type(geothermal) == "string" then
-    a.geothermal = geothermal == "true"
-  else
-    if a.diameterImpactor > world.minGeothermalMeteorDiameter and a.diameterImpactor < world.maxGeothermalMeteorDiameter then
-      if world.geothermalMeteorCount < world.geothermalMeteorTarget then a.geothermal = true end
-    end
-  end
-  if not a.geothermal then
-    if type(metal) == "string" then
-      a.metal = metal == "true"
-    else
-      if a.diameterImpactor > world.minMetalMeteorDiameter and a.diameterImpactor < world.maxMetalMeteorDiameter then
-        if world.metalMeteorCount < world.metalMeteorTarget then a.metal = true end
-      end
-    end
-  end
-  if a.metal then
-    a.metalSeed = NewSeed()
-    world.metalMeteorCount = world.metalMeteorCount + 1
-  end
-  if a.geothermal then
-    world.geothermalMeteorCount = world.geothermalMeteorCount + 1
-    a.geothermalSeed = NewSeed()
-  end
 
   a.velocityImpact = a.velocityImpactKm * 1000
   a.angleImpactRadians = a.angleImpact * radiansPerAngle
@@ -605,13 +576,20 @@ function World:MeteorShower(number, minDiameter, maxDiameter, minVelocity, maxVe
     local z = mFloor(mRandom() * Game.mapSizeZ)
     self:AddMeteor(x, z, diameter, velocity, angle, density, mFloor((number-n)*hundredConv))
   end
-  spEcho(self.metalMeteorCount, self.geothermalMeteorCount)
+  for i = #self.meteors, 1, -1 do
+    local m = self.meteors[i]
+    m:MetalGeothermal()
+    if m.mirroredMeteor and not type(m.mirroredMeteor) == "boolean" then
+      m.mirroredMeteor:MetalGeothermal(tostring(m.metal), tostring(m.geothermal))
+    end
+  end
+  spEcho(#self.meteors, self.metalMeteorCount, self.geothermalMeteorCount)
 end
 
-function World:AddMeteor(sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, doNotMirror)
-  local m = Meteor(self, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal)
+function World:AddMeteor(sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, mirroredMeteor)
+  local m = Meteor(self, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, mirroredMeteor)
   tInsert(self.meteors, m)
-  if self.mirror ~= "none" and not doNotMirror then
+  if self.mirror ~= "none" and not mirroredMeteor then
     local nsx, nsz
     if self.mirror == "reflectionalx" then
       nsx = Game.mapSizeX - sx
@@ -624,10 +602,12 @@ function World:AddMeteor(sx, sz, diameterImpactor, velocityImpactKm, angleImpact
       nsz = Game.mapSizeZ - sz
     end
     if nsx then
-      self:AddMeteor(nsx, nsz, VaryWithinBounds(diameterImpactor, 0.1, 1, 9999), VaryWithinBounds(velocityImpactKm, 0.1, 1, 120), VaryWithinBounds(angleImpact, 0.1, 1, 89), VaryWithinBounds(densityImpactor, 0.1, 1000, 10000), age, tostring(m.metal), tostring(m.geothermal), true)
+      local mm = self:AddMeteor(nsx, nsz, VaryWithinBounds(diameterImpactor, 0.1, 1, 9999), VaryWithinBounds(velocityImpactKm, 0.1, 1, 120), VaryWithinBounds(angleImpact, 0.1, 1, 89), VaryWithinBounds(densityImpactor, 0.1, 1000, 10000), age, tostring(m.metal), tostring(m.geothermal), m)
+      m.mirroredMeteor = mm
     end
   end
   self.heightBuf.changesPending = true
+  return m
 end
 
 function World:RenderAttributes(uiCommand, mapRuler)
@@ -917,7 +897,7 @@ function Renderer:HeightFinish()
 end
 
 function Renderer:HeightImageInit()
-  FWriteOpen("height", "pgm")
+  FWriteOpen("height_" .. self.mapRuler.width .. "x" .. self.mapRuler.height, "pgm")
   FWrite("P5 " .. tostring(self.mapRuler.width) .. " " .. tostring(self.mapRuler.height) .. " " .. 65535 .. " ")
 end
 
@@ -1027,7 +1007,7 @@ function Renderer:HeightBlurFinish()
 end
 
 function Renderer:AttributesInit()
-  FWriteOpen("attrib", "pbm")
+  FWriteOpen("attrib_" .. self.mapRuler.width .. "x" .. self.mapRuler.height, "pbm")
   FWrite("P6 " .. tostring(self.mapRuler.width) .. " " .. tostring(self.mapRuler.height) .. " 255 ")
 end
 
@@ -1328,6 +1308,84 @@ function Crater:GiveStartingHeight()
 end
 
 --------------------------------------
+
+function Meteor:Move(sx, sz, noMirror)
+  if not noMirror and self.mirroredMeteor and type(self.mirroredMeteor) ~= "boolean" then
+    local nsx, nsz
+    if self.world.mirror == "reflectionalx" then
+      nsx = Game.mapSizeX - sx
+      nsz = sz+0
+    elseif self.world.mirror == "reflectionalz" then
+      nsx = sx+0
+      nsz = Game.mapSizeZ - sz
+    elseif self.world.mirror == "rotational" then
+      nsx = Game.mapSizeX - sx
+      nsz = Game.mapSizeZ - sz
+    end
+    if nsx then
+      self.mirroredMeteor:Move(nsx, nsz, true)
+    end
+  end
+  self.sx = sx
+  self.sz = sz
+  self.dispX, self.dispY = displayMapRuler:XZtoXY(sx, sz)
+end
+
+function Meteor:MetalToggle(noMirror)
+  self.metal = not self.metal
+  if self.metal then
+    self.metalSeed = NewSeed()
+    self.world.metalMeteorCount = self.world.metalMeteorCount + 1
+  else
+    self.metalSeed = nil
+    self.world.metalMeteorCount = self.world.metalMeteorCount - 1
+  end
+  if not noMirror and self.mirroredMeteor and type(self.mirroredMeteor) ~= "boolean" then
+    self.mirroredMeteor:MetalToggle(true)
+  end
+end
+
+function Meteor:GeothermalToggle(noMirror)
+  self.geothermal = not self.geothermal
+  if self.geothermal then
+    self.geothermalSeed = NewSeed()
+    self.world.geothermalMeteorCount = self.world.geothermalMeteorCount + 1
+  else
+    self.geothermalSeed = nil
+    self.world.geothermalMeteorCount = self.world.geothermalMeteorCount - 1
+  end
+  if not noMirror and self.mirroredMeteor and type(self.mirroredMeteor) ~= "boolean" then self.mirroredMeteor:GeothermalToggle(true) end
+end
+
+function Meteor:MetalGeothermal(metal, geothermal, overwrite)
+  if self.metalGeothermalSet and not overwrite then return end
+  local world = self.world
+  if type(geothermal) == "string" then
+    self.geothermal = geothermal == "true"
+  else
+    if self.diameterImpactor > world.minGeothermalMeteorDiameter and self.diameterImpactor < world.maxGeothermalMeteorDiameter then
+      if world.geothermalMeteorCount < world.geothermalMeteorTarget then self.geothermal = true end
+    end
+  end
+  if not self.geothermal then
+    if type(metal) == "string" then
+      self.metal = metal == "true"
+    else
+      if self.diameterImpactor > world.minMetalMeteorDiameter and self.diameterImpactor < world.maxMetalMeteorDiameter then
+        if world.metalMeteorCount < world.metalMeteorTarget then self.metal = true end
+      end
+    end
+  end
+  if self.metal then
+    self.metalSeed = NewSeed()
+    world.metalMeteorCount = world.metalMeteorCount + 1
+  end
+  if self.geothermal then
+    world.geothermalMeteorCount = world.geothermalMeteorCount + 1
+    self.geothermalSeed = NewSeed()
+  end
+  self.metalGeothermalSet = true
+end
 
 function Meteor:PrepareDraw()
   self.rgb = { 0, (1-(self.age/100))*255, (self.age/100)*255 }

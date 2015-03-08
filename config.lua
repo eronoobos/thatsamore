@@ -1,4 +1,4 @@
-outDir = "../"
+outDir = "output/"
 yesMare = false -- send huge melt-floor-generating meteors before a shower?
 doNotStore = false
 
