@@ -1,0 +1,5 @@
+- fix metal map being mirrored vertically
+- add UI to change meteor size, velocity, angle, and density
+- add UI to shift meteors up and down in impact order
+- add create meteor UI
+- optional base perlin noise

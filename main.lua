@@ -1,4 +1,5 @@
 require "common"
+-- local noise = require "fbm_noise"
 
 local myWorld
 local keyPress = {}
@@ -9,6 +10,8 @@ local commandBuffer
 local commandHistory = {}
 local commandHistoryPos = 1
 local selectedMeteor
+local testNoise = false
+local testNoiseMap
 
 function love.conf(t)
 	t.identity = 'thatsamore'
@@ -37,8 +40,8 @@ function love.keypressed(key, isRepeat)
 			commandBuffer = nil
 		else
 			commandBuffer = ""
-			commandHistoryPos = #commandHistory
 		end
+		commandHistoryPos = #commandHistory+1
 	end
 	if commandBuffer then
 		if key == "backspace" then
@@ -58,6 +61,36 @@ function love.keypressed(key, isRepeat)
 				selectedMeteor:MetalToggle()
 			elseif key == "g" then
 				selectedMeteor:GeothermalToggle()
+			end
+		end
+		if key == "x" then
+			testNoise = not testNoise
+			if testNoise then
+				-- testNoiseMap = perlin2D(NewSeed(), displayMapRuler.width, displayMapRuler.height, 0.25, 6, 1)
+				-- testNoiseMap = (seed, sideLength, intensity, persistence, N, amplitude, blackValue, whiteValue)
+				testNoiseMap = TwoDimensionalNoise(NewSeed(), displayMapRuler.width, 255, 0.25, 5, 1)
+				--[[
+				testNoiseMap = {}
+				local min = 999
+				local max = 0
+				for x = 0, displayMapRuler.width-1 do
+					testNoiseMap[x] = {}
+					for y = 0, displayMapRuler.height-1 do
+						-- noise.fbm(x, y, z, octaves, lacunarity, gain)
+						-- local n = noise.fbm(x, y, 0, 8, 2, 0.25)
+						-- local n = love.math.noise(x,y)
+						local n = perlin
+						if n > max then max = n end
+						if n < min then min = n end
+						-- n = mCeil(n * 255)
+						-- local n n = noise.perlin(x, y, 0)
+						-- print(n, x, y)
+						testNoiseMap[x][y] = n
+					end
+				end
+				print(min, max)
+				return
+				]]--
 			end
 		end
 	end
@@ -117,6 +150,17 @@ function love.mousemoved(x, y, dx, dy)
 end
 
 function love.draw()
+	if testNoise then
+		for x = 0, displayMapRuler.width-1 do
+			for y = 0, displayMapRuler.height-1 do
+				-- local n = testNoiseMap[y+1][x+1] * 255
+				local n = testNoiseMap:Get(x+1,y+1)
+				love.graphics.setColor(n,n,n)
+				love.graphics.point(x, y)
+			end
+		end
+		return
+	end
 	if myWorld then
 		for i, m in pairs(myWorld.meteors) do
 			if not m.rgb then m:PrepareDraw() end

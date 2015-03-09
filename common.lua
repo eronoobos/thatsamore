@@ -269,6 +269,8 @@ function InterpretCommand(msg, myWorld)
       myWorld:Save(words[3])
     elseif commandWord == "load" then
       FReadOpen("world" .. (words[3] or ""), "lua", function(str) myWorld:Load(str) end)
+    elseif commandWord == "resetages" then
+      myWorld:ResetMeteorAges()
     elseif commandWord == "renderall" then
       myWorld:RenderFeatures()
       myWorld:RenderMetal()
