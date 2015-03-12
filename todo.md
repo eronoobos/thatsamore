@@ -1,5 +1,12 @@
-- fix metal map being mirrored vertically
 - add UI to change meteor size, velocity, angle, and density
 - add UI to shift meteors up and down in impact order
 - add create meteor UI
+- add delete meteor UI
+- add ramp angles to craters for vehicle entrance/exits
+- allow multiple metal spots in one meteor, meteor.metal contains the number (to be drawn in a circle around the center at equal angles from each other, with a slight randomness so it doesn't look too perfect)
 - optional base perlin noise
+- change save/load to WorldSkeleton
+	- shallow world keys (no meteors)
+	- meteor skeletons:
+		- all the parameters of a meteor class (not the class itself)
+		- seed packet (a table of seeds from which all new seeds are gotten for this meteor)

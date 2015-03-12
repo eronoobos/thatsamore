@@ -246,6 +246,10 @@ function InterpretCommand(msg, myWorld)
       myWorld:RenderHeightImage(uiCommand, fullMapRuler)
     elseif commandWord == "attributesfull" then
       myWorld:RenderAttributes(uiCommand, fullMapRuler)
+    elseif commandWord == "heightpreview" then
+      myWorld:RenderHeightPreview(uiCommand)
+    elseif commandWord == "attributespreview" then
+      myWorld:RenderAttributes(uiCommand, displayMapRuler)
     elseif commandWord == "metal" then
       myWorld:RenderMetal(uiCommand)
     elseif commandWord == "features" then
@@ -257,6 +261,9 @@ function InterpretCommand(msg, myWorld)
     elseif commandWord == "maretoggle" then
       yesMare = not yesMare
       spEcho("yesMare is now", tostring(yesMare))
+    elseif commandWord == "maretoggle" then
+      myWorld.underylingPerlin = not myWorld.underylingPerlin
+      spEcho("underlingPerlin is now", tostring(myWorld.underylingPerlin))
     elseif commandWord == "mirror" then
       myWorld.mirror = words[3]
       spEcho("mirror: " .. myWorld.mirror)
@@ -286,6 +293,8 @@ function InterpretCommand(msg, myWorld)
       myWorld:RenderMetal()
       myWorld:RenderAttributes(nil, fullMapRuler)
       myWorld:RenderHeightImage(uiCommand, fullMapRuler)
+    elseif commandWord == "exit" or commandWord == "quit" then
+      love.event.quit()
     end
   end
 end
@@ -312,4 +321,4 @@ heightMapRuler = MapRuler(nil, (Game.mapSizeX / Game.squareSize) + 1, (Game.mapS
 metalMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))
 L3DTMapRuler = MapRuler(4, (Game.mapSizeX / 4), (Game.mapSizeZ / 4))
 fullMapRuler = MapRuler(1)
-displayMapRuler = MapRuler(10, (Game.mapSizeX / 10), (Game.mapSizeZ / 10))
+displayMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))

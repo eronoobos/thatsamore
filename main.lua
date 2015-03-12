@@ -18,8 +18,22 @@ function love.conf(t)
 end
 
 function love.load()
-	myWorld = World(3, 1000)
+	love.keyboard.setKeyRepeat(true)
+	myWorld = World(4, 1000)
+	local dWidth, dHeight = love.window.getDesktopDimensions()
+	for p = 0, 4 do
+		local pixelsPerElmo = 2 ^ p
+		local testWidth, testHeight = Game.mapSizeX / pixelsPerElmo, Game.mapSizeZ / pixelsPerElmo
+		if testWidth <= dWidth and testHeight <= dHeight then
+			displayMapRuler = MapRuler(pixelsPerElmo, Game.mapSizeX / pixelsPerElmo, Game.mapSizeZ / pixelsPerElmo)
+			break
+		end
+	end
+	print(displayMapRuler.width, displayMapRuler.height, dWidth, dHeight)
     love.window.setMode(displayMapRuler.width, displayMapRuler.height, {resizable=false, vsync=false})
+    if displayMapRuler.width == dWidth or displayMapRuler.height == dHeight then
+    	love.window.setFullscreen(true)
+    end
 end
 
 function love.textinput(t)
@@ -31,13 +45,24 @@ function love.textinput(t)
 end
 
 function love.keypressed(key, isRepeat)
+	if isRepeat then
+		if key == "backspace" then
+			if commandBuffer then
+				commandBuffer = commandBuffer:sub(1,-2)
+			end
+		end
+	end
+	if isRepeat then return end
 	keyPress[key] = { x = love.mouse.getX(), y = love.mouse.getY() }
 	keyPresses = keyPresses + 1
 	if key == "return" then
 		if commandBuffer then
-			InterpretCommand(commandBuffer, myWorld)
-			tInsert(commandHistory, commandBuffer)
+			if commandBuffer ~= "" then
+				InterpretCommand(commandBuffer, myWorld)
+				tInsert(commandHistory, commandBuffer)
+			end
 			commandBuffer = nil
+			previewCanvas = nil
 		else
 			commandBuffer = ""
 		end
@@ -66,32 +91,10 @@ function love.keypressed(key, isRepeat)
 		if key == "x" then
 			testNoise = not testNoise
 			if testNoise then
-				-- testNoiseMap = perlin2D(NewSeed(), displayMapRuler.width, displayMapRuler.height, 0.25, 6, 1)
-				-- testNoiseMap = (seed, sideLength, intensity, persistence, N, amplitude, blackValue, whiteValue)
 				testNoiseMap = TwoDimensionalNoise(NewSeed(), displayMapRuler.width, 255, 0.25, 5, 1)
-				--[[
-				testNoiseMap = {}
-				local min = 999
-				local max = 0
-				for x = 0, displayMapRuler.width-1 do
-					testNoiseMap[x] = {}
-					for y = 0, displayMapRuler.height-1 do
-						-- noise.fbm(x, y, z, octaves, lacunarity, gain)
-						-- local n = noise.fbm(x, y, 0, 8, 2, 0.25)
-						-- local n = love.math.noise(x,y)
-						local n = perlin
-						if n > max then max = n end
-						if n < min then min = n end
-						-- n = mCeil(n * 255)
-						-- local n n = noise.perlin(x, y, 0)
-						-- print(n, x, y)
-						testNoiseMap[x][y] = n
-					end
-				end
-				print(min, max)
-				return
-				]]--
 			end
+		elseif key == "escape" then
+			love.event.quit()
 		end
 	end
 end
@@ -153,7 +156,6 @@ function love.draw()
 	if testNoise then
 		for x = 0, displayMapRuler.width-1 do
 			for y = 0, displayMapRuler.height-1 do
-				-- local n = testNoiseMap[y+1][x+1] * 255
 				local n = testNoiseMap:Get(x+1,y+1)
 				love.graphics.setColor(n,n,n)
 				love.graphics.point(x, y)
@@ -161,7 +163,7 @@ function love.draw()
 		end
 		return
 	end
-	if myWorld then
+	if myWorld and not previewCanvas then
 		for i, m in pairs(myWorld.meteors) do
 			if not m.rgb then m:PrepareDraw() end
 			love.graphics.setColor(m.rgb[1], m.rgb[2], m.rgb[3])
@@ -199,6 +201,12 @@ function love.draw()
 			love.graphics.print(r.renderType, r.renderBgRect.x2, r.renderBgRect.y2)
 			if r.renderProgressString then love.graphics.print(r.renderProgressString, r.renderBgRect.x2, r.renderBgRect.y1) end
 		end
+	end
+	if previewCanvas then
+		love.graphics.setColor(255,0,0)
+		love.graphics.print("PREVIEW", 8, 108)
+		love.graphics.setColor(255,255,255)
+		love.graphics.draw(previewCanvas)
 	end
 	if commandBuffer then
 		love.graphics.setColor(255,255,255)
