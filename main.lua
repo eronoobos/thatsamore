@@ -81,8 +81,8 @@ function love.keypressed(key, isRepeat)
 	if key == "return" then
 		if commandBuffer then
 			if commandBuffer ~= "" then
-				InterpretCommand(commandBuffer, myWorld)
-				tInsert(commandHistory, commandBuffer)
+				local validCommand = InterpretCommand(commandBuffer, myWorld)
+				if validCommand then tInsert(commandHistory, commandBuffer) end
 			end
 			commandBuffer = nil
 			previewCanvas = nil
@@ -110,14 +110,15 @@ function love.keypressed(key, isRepeat)
 			elseif key == "g" then
 				selectedMeteor:GeothermalToggle()
 			end
-		end
-		if key == "x" then
-			testNoise = not testNoise
-			if testNoise then
-				testNoiseMap = TwoDimensionalNoise(NewSeed(), displayMapRuler.width, 255, 0.25, 5, 1)
+		else
+			if key == "x" then
+				testNoise = not testNoise
+				if testNoise then
+					testNoiseMap = TwoDimensionalNoise(NewSeed(), displayMapRuler.width, 255, 0.25, 5, 1)
+				end
+			elseif key == "escape" then
+				love.event.quit()
 			end
-		elseif key == "escape" then
-			love.event.quit()
 		end
 	end
 end
@@ -125,15 +126,6 @@ end
 function love.keyreleased(key)
 	keyPress[key] = nil
 	keyPresses = keyPresses - 1
-	-- love.system.setClipboardText( block )
-	-- if love.filesystem.exists( "points.txt" ) then
-	-- 	print('points.txt exists')
-	-- 	lines = {}
-	-- 	for line in love.filesystem.lines("points.txt") do
-	-- 		tInsert(lines, line)
-	-- 	end
-	-- local clipText = love.system.getClipboardText()
-	-- lines = clipText:split("\n")
 end
 
 function love.mousepressed(x, y, button)
@@ -142,6 +134,13 @@ function love.mousepressed(x, y, button)
 end
 
 function love.mousereleased(x, y, button)
+	if button == "r" then
+		if mousePress["r"].origMeteorDispRadius then
+			local mult = selectedMeteor.dispCraterRadius / mousePress["r"].origMeteorDispRadius
+			print(mult)
+			selectedMeteor:Resize(mult)
+		end
+	end
 	mousePress[button] = nil
 	mousePresses = mousePresses - 1
 end
@@ -171,6 +170,12 @@ function love.mousemoved(x, y, dx, dy)
 			local sx, sz = displayMapRuler:XYtoXZ(mx, my)
 			-- print(mp.x, mp.y, mdx, mdy, mx, my, sx, sz)
 			selectedMeteor:Move(sx, sz)
+		elseif mousePress["r"] then
+			local mp = mousePress["r"]
+			mp.origMeteorDispRadius = mp.origMeteorDispRadius or selectedMeteor.dispCraterRadius+0
+			mousePress["r"] = mp
+			local dx = x - mp.x
+			selectedMeteor.dispCraterRadius = mMax(mp.origMeteorDispRadius + dx, 1)
 		end
 	end
 end
@@ -264,7 +269,7 @@ function love.draw()
 				local l = printLines[i]
 				-- local invI = #printLines - i
 				local row = i - firstCol
-				love.graphics.printf( i .. ": " .. l, printLineWidth, 8 + printLineHeight*row, printLineWidth, "left" )
+				love.graphics.printf( l, printLineWidth, 8 + printLineHeight*row, printLineWidth, "left" )
 			end
 			-- love.graphics.setBlendMode("alpha")
 		end

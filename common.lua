@@ -18,6 +18,8 @@ mRandom = love.math.random --math.random
 mMin = math.min
 mMax = math.max
 mAtan2 = math.atan2
+mSin = math.sin
+mCos = math.cos
 mExp = math.exp
 mCeil = math.ceil
 mFloor = math.floor
@@ -213,10 +215,79 @@ for i, name in pairs(MirrorTypes) do
   MirrorNames[name] = i
 end
 
+mapRulerNames = {
+  full = fullMapRuler,
+  l3dt = L3DTMapRuler,
+  height = heightMapRuler,
+  spring = heightMapRuler,
+  metal = metalMapRuler,
+}
+
 CommandWords = {
-  meteor = function(words, myWorld, uiCommand) myWorld:AddMeteor(words[3], words[4], radius*2) end,
-  shower = function(words, myWorld, uiCommand) myWorld:MeteorShower(words[3], words[4], words[5], words[6], words[7], words[8], words[9], words[10], words[11], yesMare) end,
-  clear = function(words, myWorld, uiCommand) myWorld:Clear() end
+  meteor = function(words, myWorld, uiCommand)
+    local radius = (words[5] or 10)
+    myWorld:AddMeteor(words[3], words[4], radius*2)
+  end,
+  shower = function(words, myWorld, uiCommand)
+    myWorld:MeteorShower(words[3], words[4], words[5], words[6], words[7], words[8], words[9], words[10], words[11], yesMare)
+  end,
+  clear = function(words, myWorld, uiCommand)
+    myWorld:Clear()
+  end,
+  height = function(words, myWorld, uiCommand)
+    myWorld:RenderHeightImage(uiCommand, mapRulerNames[words[3]] or heightMapRuler)
+  end,
+  attributes = function(words, myWorld, uiCommand)
+    myWorld:RenderAttributes(uiCommand, mapRulerNames[words[3]] or heightMapRuler)
+  end,
+  heightpreview = function(words, myWorld, uiCommand)
+    myWorld:RenderHeightImage(uiCommand, displayMapRuler)
+  end,
+  attributespreview = function(words, myWorld, uiCommand)
+    myWorld:RenderAttributes(uiCommand, displayMapRuler)
+  end,
+  metal = function(words, myWorld, uiCommand)
+    myWorld:RenderMetal(uiCommand)
+  end,
+  features = function(words, myWorld, uiCommand)
+    myWorld:RenderFeatures(uiCommand)
+  end,
+  maretoggle = function(words, myWorld, uiCommand)
+    yesMare = not yesMare
+    spEcho("yesMare is now", tostring(yesMare))
+  end,
+  mirror = function(words, myWorld, uiCommand)
+    myWorld.mirror = words[3]
+    spEcho("mirror: " .. myWorld.mirror)
+  end,
+  mirrornext = function(words, myWorld, uiCommand)
+    local mt = MirrorNames[myWorld.mirror]+1
+    if mt == #MirrorTypes+1 then mt = 1 end
+    myWorld.mirror = MirrorTypes[mt]
+    spEcho("mirror: " .. myWorld.mirror)
+  end,
+  save = function(words, myWorld, uiCommand)
+    myWorld:Save(words[3])
+  end,
+  load = function(words, myWorld, uiCommand)
+    FReadOpen("world" .. (words[3] or ""), "lua", function(str) myWorld:Load(str) end)
+  end,
+  resetages = function(words, myWorld, uiCommand)
+    myWorld:ResetMeteorAges()
+  end,
+  renderall = function(words, myWorld, uiCommand)
+    local mapRuler = mapRulerNames[words[3]] or heightMapRuler
+    myWorld:RenderFeatures()
+    myWorld:RenderMetal()
+    myWorld:RenderAttributes(nil, mapRuler)
+    myWorld:RenderHeightImage(uiCommand, mapRuler)
+  end,
+  exit = function(words, myWorld, uiCommand)
+    love.event.quit()
+  end,
+  quit = function(words, myWorld, uiCommand)
+    love.event.quit()
+  end,
 }
 
 function InterpretCommand(msg, myWorld)
@@ -232,81 +303,8 @@ function InterpretCommand(msg, myWorld)
       CommandWords[commandWord](words, myWorld, uiCommand)
       return true
     end
-    if commandWord == "meteor" then
-      local radius = words[5] / 15
-      myWorld:AddMeteor(words[3], words[4], radius*2)
-    elseif commandWord == "shower" then
-      myWorld:MeteorShower(words[3], words[4], words[5], words[6], words[7], words[8], words[9], words[10], words[11], yesMare)
-    elseif commandWord == "clear" then
-      myWorld:Clear()
-    elseif commandWord == "blur" then
-      local radius = words[3] or 1
-      myWorld.heightBuf:Blur(radius, uiCommand)
-    elseif commandWord == "read" then
-      myWorld.heightBuf:Read()
-    elseif commandWord == "height" then
-      myWorld.heightBuf:SendFile(uiCommand)
-    elseif commandWord == "attributes" then
-      myWorld:RenderAttributes(uiCommand)
-    elseif commandWord == "attributesl3dt" then
-      myWorld:RenderAttributes(uiCommand, L3DTMapRuler)
-    elseif commandWord == "heightl3dt" then
-      myWorld:RenderHeightImage(uiCommand, L3DTMapRuler)
-    elseif commandWord == "heightfull" then
-      myWorld:RenderHeightImage(uiCommand, fullMapRuler)
-    elseif commandWord == "attributesfull" then
-      myWorld:RenderAttributes(uiCommand, fullMapRuler)
-    elseif commandWord == "heightpreview" then
-      myWorld:RenderHeightPreview(uiCommand)
-    elseif commandWord == "attributespreview" then
-      myWorld:RenderAttributes(uiCommand, displayMapRuler)
-    elseif commandWord == "metal" then
-      myWorld:RenderMetal(uiCommand)
-    elseif commandWord == "features" then
-      myWorld:RenderFeatures(uiCommand)
-    elseif commandWord == "bypasstoggle" then
-      bypassSpring = not bypassSpring
-      spEcho("bypassSpring is now", tostring(bypassSpring))
-      SendToUnsynced("BypassSpring", tostring(bypassSpring))
-    elseif commandWord == "maretoggle" then
-      yesMare = not yesMare
-      spEcho("yesMare is now", tostring(yesMare))
-    elseif commandWord == "maretoggle" then
-      myWorld.underylingPerlin = not myWorld.underylingPerlin
-      spEcho("underlingPerlin is now", tostring(myWorld.underylingPerlin))
-    elseif commandWord == "mirror" then
-      myWorld.mirror = words[3]
-      spEcho("mirror: " .. myWorld.mirror)
-    elseif commandWord == "mirrornext" then
-      local mt = MirrorNames[myWorld.mirror]+1
-      if mt == #MirrorTypes+1 then mt = 1 end
-      myWorld.mirror = MirrorTypes[mt]
-      spEcho("mirror: " .. myWorld.mirror)
-    elseif commandWord == "save" then
-      myWorld:Save(words[3])
-    elseif commandWord == "load" then
-      FReadOpen("world" .. (words[3] or ""), "lua", function(str) myWorld:Load(str) end)
-    elseif commandWord == "resetages" then
-      myWorld:ResetMeteorAges()
-    elseif commandWord == "renderall" then
-      myWorld:RenderFeatures()
-      myWorld:RenderMetal()
-      myWorld:RenderAttributes()
-      myWorld.heightBuf:SendFile(uiCommand)
-    elseif commandWord == "renderalll3dt" then
-      myWorld:RenderFeatures()
-      myWorld:RenderMetal()
-      myWorld:RenderAttributes(nil, L3DTMapRuler)
-      myWorld:RenderHeightImage(uiCommand, L3DTMapRuler)
-    elseif commandWord == "renderallfull" then
-      myWorld:RenderFeatures()
-      myWorld:RenderMetal()
-      myWorld:RenderAttributes(nil, fullMapRuler)
-      myWorld:RenderHeightImage(uiCommand, fullMapRuler)
-    elseif commandWord == "exit" or commandWord == "quit" then
-      love.event.quit()
-    end
   end
+  return false
 end
 
 function RectXYWH(rect)

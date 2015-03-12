@@ -1,4 +1,4 @@
-- add UI to change meteor size, velocity, angle, and density
+- add UI to change meteor velocity, angle, and density
 - add UI to shift meteors up and down in impact order
 - add create meteor UI
 - add delete meteor UI

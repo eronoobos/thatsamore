@@ -354,7 +354,7 @@ end)
 -- Meteor stores data and does meteor impact model calculations
 -- meteor impact model equations based on http://impact.ese.ic.ac.uk/ImpactEffects/effects.pdf
 Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, mirroredMeteor)
-  print(sx, sz, age, mirroredMeteor)
+  print(sx, sz, diameterImpactor, age, mirroredMeteor)
   -- coordinates sx and sz are in spring coordinates (elmos)
   a.world = world
   if not sx then return end
@@ -721,7 +721,7 @@ function MapRuler:XYtoXZ(x, y)
   else
     local sx = mFloor((x-1) * self.elmosPerPixel)
     -- local sz = mFloor(Game.mapSizeZ - ((y-1) * self.elmosPerPixel))
-    local sz = mFloor((z-1) * self.elmosPerPixel)
+    local sz = mFloor((y-1) * self.elmosPerPixel)
     return sx, sz
   end
 end
@@ -825,11 +825,6 @@ function HeightBuffer:GetCircle(x, y, radius)
     end
   end
   return totalHeight / totalWeight, minHeight, maxHeight
-end
-
-function HeightBuffer:Blur(radius, uiCommand)
-  radius = radius or 1
-  tInsert(self.world.renderers, Renderer(self.world, self.mapRuler, 2000, "HeightBlur", uiCommand, self, true, radius))
 end
 
 function HeightBuffer:SendFile(uiCommand)
@@ -1006,76 +1001,6 @@ function Renderer:HeightImageFinish()
     local world = self.heightBuf.world
     self.heightBuf = nil
     world.heightBuf = HeightBuffer(world, heightMapRuler)
-  end
-end
-
-function Renderer:HeightBlurInit()
-  self.sradius = mCeil(self.radius * 2.57)
-  local radiusTwoSq = self.radius * self.radius * 2
-  local radiusTwoSqPi = radiusTwoSq * pi
-  self.weights = {}
-  for dx = -self.sradius, self.sradius do
-    self.weights[dx] = {}
-    for dy = -self.sradius, self.sradius do
-      local distSq = (dx*dx) + (dy*dy)
-      local weight = mExp(-distSq / radiusTwoSq) / radiusTwoSqPi
-      self.weights[dx][dy] = weight
-    end
-  end
-  self.newHeights = {}
-end
-
-function Renderer:HeightBlurFrame()
-  local heightBuf = self.heightBuf
-  local pixelsThisFrame = mMin(self.pixelsPerFrame, self.pixelsToRenderCount)
-  local pMin = self.totalPixels - self.pixelsToRenderCount
-  local pMax = pMin + pixelsThisFrame
-  for p = pMin, pMax do
-    local x = (p % self.mapRuler.width) + 1
-    local y = mFloor(p / self.mapRuler.width) + 1
-    local center = heightBuf:Get(x, y)
-    local totalWeight = 0
-    local totalHeight = 0
-    local same = true
-    for dx = -self.sradius, self.sradius do
-      for dy = -self.sradius, self.sradius do
-        local h = heightBuf:Get(x+dx, y+dy)
-        if h ~= center then
-          same = false
-          break
-        end
-      end
-      if not same then break end
-    end
-    local newH
-    if same then
-      newH = center
-    else
-      for dx = -self.sradius, self.sradius do
-        for dy = -self.sradius, self.sradius do
-          local h = heightBuf:Get(x+dx, y+dy)
-          if h then
-            local weight = self.weights[dx][dy]
-            totalHeight = totalHeight + (h * weight)
-            totalWeight = totalWeight + weight
-          end
-        end
-      end
-      newH = totalHeight / totalWeight
-    end
-    self.newHeights[x] = self.newHeights[x] or {}
-    self.newHeights[x][y] = newH
-  end
-  self.pixelsToRenderCount = self.pixelsToRenderCount - pixelsThisFrame - 1
-  return pixelsThisFrame + 1
-end
-
-function Renderer:HeightBlurFinish()
-  local heightBuf = self.heightBuf
-  for x = 1, self.mapRuler.width do
-    for y = 1, self.mapRuler.height do
-      heightBuf:Set(x, y, self.newHeights[x][y])
-    end
   end
 end
 
@@ -1414,9 +1339,38 @@ function Meteor:Move(sx, sz, noMirror)
       self.mirroredMeteor:Move(nsx, nsz, true)
     end
   end
-  self.sx = sx
-  self.sz = sz
-  self.dispX, self.dispY = displayMapRuler:XZtoXY(sx, sz)
+  local newMeteor = Meteor(self.world, sx, sz, self.diameterImpactor, self.velocityImpactKm, self.angleImpact, self.densityImpactor, self.age, self.metal, self.geothermal, self.mirroredMeteor)
+  self:Copy(newMeteor)
+end
+
+function Meteor:Copy(sourceMeteor)
+  for k, v in pairs(sourceMeteor) do
+    self[k] = v
+  end
+end
+
+function Meteor:Resize(multiplier, noMirror)
+  local targetRadius = self.craterRadius * multiplier
+  local targetRadiusM = targetRadius * self.world.metersPerElmo
+  local targetDiameterM = targetRadiusM * 2
+  local newDiameterImpactor
+  local DensVeloGravAngle = ((self.densityImpactor / self.world.density) ^ 0.33) * (self.velocityImpact ^ 0.44) * (self.world.gravity ^ -0.22) * (mSin(self.angleImpactRadians) ^ 0.33)
+  if targetRadius * 2 > self.world.complexDiameter then
+    local targetDiameterKm = targetDiameterM / 1000
+    local DcKm = self.world.complexDiameter / 1000
+    -- print("complex")
+    newDiameterImpactor = ((((targetDiameterKm*(DcKm^0.13))/1.17)^0.885)*1000 / (1.161*1.25*DensVeloGravAngle)) ^ 1.282
+    newDiameterImpactor = newDiameterImpactor * 1.3805 -- obviously i screwed something up here, but it's a god enough approximation
+  else
+    -- print("simple")
+    newDiameterImpactor = (  targetDiameterM / (  1.161 * 1.25 * DensVeloGravAngle )  ) ^ 1.282
+  end
+  local newMeteor = Meteor(self.world, self.sx, self.sz, newDiameterImpactor, self.velocityImpactKm, self.angleImpact, self.densityImpactor, self.age, self.metal, self.geothermal, self.mirroredMeteor)
+  -- print("resize", multiplier, targetRadius, newMeteor.craterRadius, targetRadius / newMeteor.craterRadius, newDiameterImpactor, newMeteor.diameterImpactor)
+  self:Copy(newMeteor)
+  if not noMirror and self.mirroredMeteor and type(self.mirroredMeteor) ~= "boolean" then
+    self.mirroredMeteor:Resize(multiplier, true)
+  end
 end
 
 function Meteor:MetalToggle(noMirror)
