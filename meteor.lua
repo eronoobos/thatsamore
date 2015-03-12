@@ -342,7 +342,6 @@ Crater = class(function(a, meteor, renderer)
   end
 
   if meteor.ageSeed then
-    print("agenoise")
     a.ageNoise = NoisePatch(a.x, a.y, a.totalradiusPlusWobble, meteor.ageSeed, 0.5-(meteor.ageRatio*0.25), 0.33, 10-elmosPerPixelP2)
   end
 
@@ -444,7 +443,6 @@ Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, an
   end
   if a.age > 0 then
     a.ageSeed = NewSeed()
-    print("ageseed")
   end
 
   a.rgb = { 0, (1-(a.age/100))*255, (a.age/100)*255 }

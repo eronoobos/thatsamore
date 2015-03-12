@@ -13,11 +13,28 @@ local selectedMeteor
 local testNoise = false
 local testNoiseMap
 
+printLines = {}
+realPrint = print
+function print(...)
+	local line = ""
+	for i, str in ipairs({...}) do
+		if i > 1 then line = line .. "\t" end
+		line = line .. str
+	end
+	tInsert(printLines, line)
+	if logFile then logFile:write(line .. "\n") end
+	realPrint(...)
+end
+
 function love.conf(t)
 	t.identity = 'thatsamore'
 end
 
 function love.load()
+	io.stdout:setvbuf("no")
+	logFile = assert(io.open(outDir.."stdout.log","w"), "Unable to save to "..outDir.."stdout.log")
+	commandLineFont = love.graphics.newFont("fonts/SourceCodePro-Medium.ttf", 16)
+	printLineFont = love.graphics.newFont("fonts/SourceCodePro-Medium.ttf", 12)
 	love.keyboard.setKeyRepeat(true)
 	myWorld = World(4, 1000)
 	local dWidth, dHeight = love.window.getDesktopDimensions()
@@ -29,11 +46,17 @@ function love.load()
 			break
 		end
 	end
-	print(displayMapRuler.width, displayMapRuler.height, dWidth, dHeight)
     love.window.setMode(displayMapRuler.width, displayMapRuler.height, {resizable=false, vsync=false})
     if displayMapRuler.width == dWidth or displayMapRuler.height == dHeight then
     	love.window.setFullscreen(true)
     end
+    printLineHeight = printLineFont:getHeight()
+    printLineWidth = mFloor(displayMapRuler.width / 2)
+    maximumPrintLines = mFloor((displayMapRuler.height - 16) / printLineHeight) - 1
+end
+
+function love.quit()
+	logFile:close()
 end
 
 function love.textinput(t)
@@ -77,8 +100,8 @@ function love.keypressed(key, isRepeat)
 			commandHistoryPos = mMax(commandHistoryPos - 1, 1)
 			commandBuffer = commandHistory[commandHistoryPos]
 		elseif key == "down" then
-			commandHistoryPos = mMin(commandHistoryPos + 1, #commandHistory)
-			commandBuffer = commandHistory[commandHistoryPos]
+			commandHistoryPos = mMin(commandHistoryPos + 1, #commandHistory+1)
+			commandBuffer = commandHistory[commandHistoryPos] or ""
 		end
 	else
 		if selectedMeteor then
@@ -209,8 +232,42 @@ function love.draw()
 		love.graphics.draw(previewCanvas)
 	end
 	if commandBuffer then
-		love.graphics.setColor(255,255,255)
-		love.graphics.print("$ " .. commandBuffer .. "_", 8, 8)
+		local maxLen = commandBuffer:len()
+		local maxStr = commandBuffer
+		for i, c in pairs(commandHistory) do
+			if c:len() > maxLen then
+				maxLen = c:len()
+				maxStr = c
+			end
+		end
+		maxStr = "  " .. maxStr .. " "
+		love.graphics.setColor(0, 0, 0, 127)
+		love.graphics.rectangle("fill", 8, displayMapRuler.height - 8 - commandLineFont:getHeight()*(#commandHistory+1), commandLineFont:getWidth(maxStr), commandLineFont:getHeight()*(#commandHistory+1) )
+		PrintCommandLine(commandBuffer)
+		if #commandHistory > 0 then
+			for i = #commandHistory, 1, -1 do
+				local c = commandHistory[i]
+				local r, g, b
+				if i == commandHistoryPos then
+					r, g, b = 0, 255, 0
+				end
+				local invI = (#commandHistory - i) + 1
+				PrintCommandLine(c, invI, r, g, b)
+			end
+		end
+		if printLines and #printLines > 0 then
+			love.graphics.setFont(printLineFont)
+			love.graphics.setColor(255, 255, 255)
+			-- love.graphics.setBlendMode("subtractive")
+			local firstCol = mMax(1, #printLines - maximumPrintLines)
+			for i = firstCol, #printLines do
+				local l = printLines[i]
+				-- local invI = #printLines - i
+				local row = i - firstCol
+				love.graphics.printf( i .. ": " .. l, printLineWidth, 8 + printLineHeight*row, printLineWidth, "left" )
+			end
+			-- love.graphics.setBlendMode("alpha")
+		end
 	end
 	love.graphics.setColor(0,0,0)
 end

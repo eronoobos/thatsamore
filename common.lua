@@ -213,6 +213,12 @@ for i, name in pairs(MirrorTypes) do
   MirrorNames[name] = i
 end
 
+CommandWords = {
+  meteor = function(words, myWorld, uiCommand) myWorld:AddMeteor(words[3], words[4], radius*2) end,
+  shower = function(words, myWorld, uiCommand) myWorld:MeteorShower(words[3], words[4], words[5], words[6], words[7], words[8], words[9], words[10], words[11], yesMare) end,
+  clear = function(words, myWorld, uiCommand) myWorld:Clear() end
+}
+
 function InterpretCommand(msg, myWorld)
   if not msg then return end
   if msg == "" then return end
@@ -222,6 +228,10 @@ function InterpretCommand(msg, myWorld)
   if where == "loony" then
     local commandWord = words[2]
     local uiCommand = string.sub(msg, 7)
+    if CommandWords[commandWord] then
+      CommandWords[commandWord](words, myWorld, uiCommand)
+      return true
+    end
     if commandWord == "meteor" then
       local radius = words[5] / 15
       myWorld:AddMeteor(words[3], words[4], radius*2)
@@ -313,6 +323,24 @@ function DistanceSq(x1, y1, x2, y2)
   local dx = mAbs(x2 - x1)
   local dy = mAbs(y2 - y1)
   return (dx*dx) + (dy*dy)
+end
+
+function PrintCommandLine(lineStr, pos, r, g, b)
+  r = r or 255
+  g = g or 255
+  b = b or 255
+  pos = pos or 0
+  local prefix = "  "
+  local suffix = ""
+  if pos == 0 then
+    prefix = "> "
+    suffix = "_"
+  end
+  local outStr = prefix .. lineStr .. suffix
+  local y = displayMapRuler.height - (commandLineFont:getHeight()*(pos+1)) - 8
+  love.graphics.setFont(commandLineFont)
+  love.graphics.setColor(r, g, b)
+  love.graphics.print(outStr, 8, y)
 end
 
 -- globals used here and to export:
