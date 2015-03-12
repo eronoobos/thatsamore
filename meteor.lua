@@ -1094,31 +1094,36 @@ function Renderer:AttributesFrame()
   local pixelsThisFrame = mMin(self.pixelsPerFrame, self.pixelsToRenderCount)
   local pMin = self.totalPixels - self.pixelsToRenderCount
   local pMax = pMin + pixelsThisFrame
-  self.canvas:renderTo(function()
-  for p = pMin, pMax do
-    local x = (p % self.mapRuler.width) + 1
-    -- local y = self.mapRuler.height - mFloor(p / self.mapRuler.width) -- pgm is backwards y?
-    local y = mFloor(p / self.mapRuler.width) + 1
-    if p < 2000 then spEcho(p, x, y) end
-    local attribute = 0
-    for i, c in ipairs(self.craters) do
-      local a = c:AttributePixel(x, y)
-      if a ~= 0 and not AttributeOverlapExclusions[a][attribute] then
-        attribute = a
+  local function doIt()
+    for p = pMin, pMax do
+      local x = (p % self.mapRuler.width) + 1
+      -- local y = self.mapRuler.height - mFloor(p / self.mapRuler.width) -- pgm is backwards y?
+      local y = mFloor(p / self.mapRuler.width) + 1
+      if p < 2000 then spEcho(p, x, y) end
+      local attribute = 0
+      for i, c in ipairs(self.craters) do
+        local a = c:AttributePixel(x, y)
+        if a ~= 0 and not AttributeOverlapExclusions[a][attribute] then
+          attribute = a
+        end
+      end
+      -- local aRGB = {mFloor((x / self.world.renderWidth) * 255), mFloor((y / self.world.renderHeight) * 255), mFloor((p / self.world.totalPixels) * 255)}
+      if self.uiCommand == "attributespreview" then
+        local rgb = AttributeDict[attribute].rgb
+          love.graphics.setColor(rgb[1], rgb[2], rgb[3])
+          love.graphics.point(x-1,y-1)
+      else
+        local threechars = AttributeDict[attribute].threechars
+        FWrite(threechars)
       end
     end
-    -- local aRGB = {mFloor((x / self.world.renderWidth) * 255), mFloor((y / self.world.renderHeight) * 255), mFloor((p / self.world.totalPixels) * 255)}
-    if self.uiCommand == "attributespreview" then
-      local rgb = AttributeDict[attribute].rgb
-        love.graphics.setColor(rgb[1], rgb[2], rgb[3])
-        love.graphics.point(x-1,y-1)
-    else
-      local threechars = AttributeDict[attribute].threechars
-      FWrite(threechars)
-    end
+    self.pixelsToRenderCount = self.pixelsToRenderCount - pixelsThisFrame - 1
   end
-  end)
-  self.pixelsToRenderCount = self.pixelsToRenderCount - pixelsThisFrame - 1
+  if self.uiCommand == "attributespreview" then
+    self.canvas:renderTo(doIt)
+  else
+    doIt()
+  end
   return pixelsThisFrame + 1
 end
 
