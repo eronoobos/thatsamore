@@ -1317,9 +1317,64 @@ end
 --------------------------------------
 
 function Meteor:SetAge(age)
-  print(self.age, age)
   self.age = age
   self.ageRatio = age / 100
+end
+
+function Meteor:Delete(noMirror)
+  for i, m in pairs(self.world.meteors) do
+    if m == self then
+      tRemove(self.world.meteors, i)
+      break
+    end
+  end
+  if not noMirror and self.mirroredMeteor then
+    self.mirroredMeteor:Delete(true)
+  end
+  self = nil
+end
+
+function Meteor:ShiftUp()
+  local newMeteors = {}
+  local shiftDown
+  for i, m in ipairs(self.world.meteors) do
+    if m == self then
+      if i == #self.world.meteors then
+        -- can't shift up
+        return
+      end
+      newMeteors[i+1] = self
+      shiftDown = self.world.meteors[i+1]
+      newMeteors[i] = shiftDown
+    elseif m ~= shiftDown then
+      newMeteors[i] = m
+    end
+  end
+  self.world.meteors = newMeteors
+  self.world:ResetMeteorAges()
+  self:PrepareDraw()
+end
+
+function Meteor:ShiftDown()
+  local newMeteors = {}
+  local shiftUp
+  for i = #self.world.meteors, 1, -1 do
+    local m = self.world.meteors[i]
+    if m == self then
+      if i == 1 then
+        -- can't shift down
+        return
+      end
+      newMeteors[i-1] = self
+      shiftUp = self.world.meteors[i-1]
+      newMeteors[i] = shiftUp
+    elseif m ~= shiftUp then
+      newMeteors[i] = m
+    end
+  end
+  self.world.meteors = newMeteors
+  self.world:ResetMeteorAges()
+  self:PrepareDraw()
 end
 
 function Meteor:Move(sx, sz, noMirror)

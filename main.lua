@@ -104,20 +104,31 @@ function love.keypressed(key, isRepeat)
 			commandBuffer = commandHistory[commandHistoryPos] or ""
 		end
 	else
+		-- non-command buffer global keys
+		if key == "." then
+			local x, y = love.mouse.getPosition()
+			local sx, sz = displayMapRuler:XYtoXZ(x, y)
+			myWorld:AddMeteor(sx, sz)
+		elseif key == "x" then
+			testNoise = not testNoise
+			if testNoise then
+				testNoiseMap = TwoDimensionalNoise(NewSeed(), displayMapRuler.width, 255, 0.25, 5, 1)
+			end
+		elseif key == "escape" then
+			love.event.quit()
+		end
 		if selectedMeteor then
+			-- keys for a selected meteor
 			if key == "m" then
 				selectedMeteor:MetalToggle()
 			elseif key == "g" then
 				selectedMeteor:GeothermalToggle()
-			end
-		else
-			if key == "x" then
-				testNoise = not testNoise
-				if testNoise then
-					testNoiseMap = TwoDimensionalNoise(NewSeed(), displayMapRuler.width, 255, 0.25, 5, 1)
-				end
-			elseif key == "escape" then
-				love.event.quit()
+			elseif key == "d" then
+				selectedMeteor:Delete()
+			elseif key == "pageup" then
+				selectedMeteor:ShiftUp()
+			elseif key == "pagedown" then
+				selectedMeteor:ShiftDown()
 			end
 		end
 	end
@@ -129,6 +140,13 @@ function love.keyreleased(key)
 end
 
 function love.mousepressed(x, y, button)
+	if selectedMeteor then
+		if button == "wu" then
+			selectedMeteor:ShiftUp()
+		elseif button == "wd" then
+			selectedMeteor:ShiftDown()
+		end
+	end
 	mousePress[button] = {x = x, y = y}
 	mousePresses = mousePresses + 1
 end
@@ -289,6 +307,4 @@ function love.update(dt)
 			renderer:PrepareDraw()
 		end
 	end
-	-- love.mouse.getX(), love.mouse.getY()
-   -- love.window.setTitle( )
 end
