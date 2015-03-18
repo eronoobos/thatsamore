@@ -1,10 +1,11 @@
+- don't remove ramps when resizing or moving
+- UI for editing world & Game
 - add UI to change meteor velocity, angle, and density
-- add ramp angles to craters for vehicle entrance/exits
 - allow multiple metal spots in one meteor, meteor.metal contains the number (to be drawn in a circle around the center at equal angles from each other, with a slight randomness so it doesn't look too perfect)
 - give a slight variability in mirrored meteor positions
 - optional base perlin noise
-- change save/load to WorldSkeleton
-	- shallow world keys (no meteors)
-	- meteor skeletons:
-		- all the input parameters of a meteor class (not the class itself)
-		- seed packet (a table of seeds from which all new seeds are gotten for this meteor)
+- reorganize into
+	- meteor (meteor skeleton, only parameters and a seed packet)
+	- impact (all render resolution-independent calculations)
+		- gets all new noise keys from the meteor's seed packet
+	- crater (all render resolution-dependent calculations)

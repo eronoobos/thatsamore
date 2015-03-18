@@ -153,8 +153,7 @@ local function ClearMetalMap()
   end
 end
 
-local function WriteMetalSpot(spot)
-    local metal = spot.metal
+local function WriteMetalSpot(x, z, metal)
     local pixels = 5
     if metal <= 1 then
       pixels = 5
@@ -164,10 +163,9 @@ local function WriteMetalSpot(spot)
       pixels = 13
     end
     local mAmount = (1000 / pixels) * metal
-    local x, z = mFloor(spot.x/16), mFloor(spot.z/16)
-    if(x == nil or z == nil) then spEcho("FATAL ERROR: x or y was nil for index " .. i) end
+    local mx, mz = mFloor(x/16), mFloor(z/16)
     for p = 1, pixels do
-      spSetMetalAmount(x + metalPixelCoords[p][1], z + metalPixelCoords[p][2], mAmount)
+      spSetMetalAmount(mx + metalPixelCoords[p][1], mz + metalPixelCoords[p][2], mAmount)
     end
 end
 
@@ -309,6 +307,16 @@ Crater = class(function(a, meteor, renderer)
   a.blastRadiusSq = a.blastRadius ^ 2
   a.xminBlast, a.xmaxBlast, a.yminBlast, a.ymaxBlast = renderer.mapRuler:RadiusBounds(a.x, a.y, a.blastRadius)
 
+  a.ramps = {}
+  for i, ramp in pairs(meteor.ramps) do
+    -- l = 2r * sin(θ/2)
+    -- θ = 2 * asin(l/2r)
+    local width = ramp.width / elmosPerPixel
+    local halfTheta = mAsin(width / (2 * a.totalradius))
+    local cRamp = { angle = ramp.angle, width = width, halfTheta = halfTheta }
+    tInsert(a.ramps, cRamp)
+  end
+
   if meteor.metalSeed and world.metalAttribute then
     a.metalRadius = mCeil(world.metalRadius / elmosPerPixel)
     a.metalNoise = NoisePatch(a.x, a.y, a.metalRadius, meteor.metalSeed, 1, 0.5, 5-elmosPerPixelP2)
@@ -368,12 +376,12 @@ Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, an
   a.velocityImpactKm = velocityImpactKm or 30
   a.angleImpact = angleImpact or 45
   a.densityImpactor = densityImpactor or 8000
-  a.age = age or 0
+  a.age = mMax(mMin(mFloor(age or 0), 100), 0)
   a.ageRatio = a.age / 100
 
   a.velocityImpact = a.velocityImpactKm * 1000
-  a.angleImpactRadians = a.angleImpact * radiansPerAngle
-  a.diameterTransient = 1.161 * ((a.densityImpactor / world.density) ^ 0.33) * (a.diameterImpactor ^ 0.78) * (a.velocityImpact ^ 0.44) * (world.gravity ^ -0.22) * (math.sin(a.angleImpactRadians) ^ 0.33)
+  a.angleImpactRadians = a.angleImpact * radiansPerDegree
+  a.diameterTransient = 1.161 * ((a.densityImpactor / world.density) ^ 0.33) * (a.diameterImpactor ^ 0.78) * (a.velocityImpact ^ 0.44) * (world.gravity ^ -0.22) * (mSin(a.angleImpactRadians) ^ 0.33)
   a.diameterSimple = a.diameterTransient * 1.25
   a.depthTransient = a.diameterTransient / twoSqrtTwo
   a.rimHeightTransient = a.diameterTransient / 14.1
@@ -383,6 +391,8 @@ Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, an
   a.depthSimple = a.depthTransient - a.brecciaDepth
 
   a.rayWidth = 0.07 -- in radians
+
+  a.ramps = {}
 
   a.craterRimHeight = a.rimHeightSimple / world.metersPerElmo
 
@@ -411,7 +421,7 @@ Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, an
     end
     a.mass = (pi * (a.diameterImpactor ^ 3) / 6) * a.densityImpactor
     a.energyImpact = 0.5 * a.mass * (a.velocityImpact^2)
-    a.meltVolume = 8.9 * 10^(-12) * a.energyImpact * math.sin(a.angleImpactRadians)
+    a.meltVolume = 8.9 * 10^(-12) * a.energyImpact * mSin(a.angleImpactRadians)
     a.meltThickness = (4 * a.meltVolume) / (pi * (a.diameterTransient ^ 2))
     a.craterRadius = (a.diameterComplex / 2) / world.metersPerElmo
     a.craterMeltThickness = a.meltThickness / world.metersPerElmo
@@ -472,8 +482,8 @@ WrapNoise = class(function(a, length, intensity, seed, persistence, N, amplitude
   local i = 1
   local angleIncrement = twicePi / length
   for angle = -pi, pi, angleIncrement do
-    local x = mFloor(radius + (radius * math.cos(angle))) + 1
-    local y = mFloor(radius + (radius * math.sin(angle))) + 1
+    local x = mFloor(radius + (radius * mCos(angle))) + 1
+    local y = mFloor(radius + (radius * mSin(angle))) + 1
     local val = yx[y][x]
     if mAbs(val) > a.absMaxValue then a.absMaxValue = mAbs(val) end
     values[i] = val
@@ -1075,7 +1085,7 @@ function Renderer:MetalInit()
   ClearMetalMap()
   for i, spot in pairs(self.metalSpots) do
     FWrite("\t\t{x = " .. spot.x .. ", z = " .. spot.z .. ", metal = " .. spot.metal .. "},\n")
-    WriteMetalSpot(spot)
+    WriteMetalSpot(spot.x, spot.z, spot.metal)
   end
   FWrite("\t}\n}")
   FWriteClose()
@@ -1180,6 +1190,21 @@ function Crater:HeightPixel(x, y)
   local alpha = 1
   local rimHeight = meteor.craterRimHeight * heightWobbly
   local rimRatioPower = rimRatio ^ meteor.bowlPower
+  if #self.ramps > 0 then
+    local dist = mSqrt(distSq)
+    local totalRatio = dist / self.totalradius
+    for i, ramp in pairs(self.ramps) do
+      local halfThetaHere = ramp.halfTheta / totalRatio
+      local angleDist = AngleDist(angle, ramp.angle)
+      if angleDist < halfThetaHere then
+        local angleRatio = angleDist / halfThetaHere
+        local angleRatioSmooth = mSmoothstep(0, 1, angleRatio)
+        local smooth = mSmoothstep(0, 1, (dist / self.radius))
+        rimRatioPower = mMix(smooth, rimRatioPower, angleRatioSmooth)
+        rimHeight = mMix(0, rimHeight, angleRatioSmooth)
+      end
+    end
+  end
   local add = false
   if distSq <= self.radiusSq then
     if meteor.age > 0 then
@@ -1197,7 +1222,7 @@ function Crater:HeightPixel(x, y)
       local rayWobbly = meteor.rayNoise:Radial(angle) + 1
       local rayWidth = meteor.rayWidth * rayWobbly
       local rayWidthMult = twicePi / rayWidth
-      local rayHeight = mMax(math.sin(rayWidthMult * angle) - 0.75, 0) * meteor.rayHeight * heightWobbly * rimRatio * (1-(meteor.age / 15))
+      local rayHeight = mMax(mSin(rayWidthMult * angle) - 0.75, 0) * meteor.rayHeight * heightWobbly * rimRatio * (1-(meteor.age / 15))
       height = height - rayHeight
     end
   else
@@ -1276,7 +1301,7 @@ function Crater:AttributePixel(x, y)
       local rayWobbly = meteor.rayNoise:Radial(angle) + 1
       local rayWidth = meteor.rayWidth * rayWobbly
       local rayWidthMult = twicePi / rayWidth
-      local rayHeight = mMax(math.sin(rayWidthMult * angle) - 0.75, 0) * heightWobbly * rimRatio * (1-(meteor.age / 15))
+      local rayHeight = mMax(mSin(rayWidthMult * angle) - 0.75, 0) * heightWobbly * rimRatio * (1-(meteor.age / 15))
       -- if rayHeight > 0.1 then return 6 end
       if mRandom() < rayHeight / 0.2 then return 6 end
     end
@@ -1484,10 +1509,22 @@ function Meteor:MetalGeothermal(metal, geothermal, overwrite)
   self.metalGeothermalSet = true
 end
 
+function Meteor:AddRamp(angle, width)
+  -- l = 2r * sin(θ/2)
+  -- θ = 2 * asin(l/2r)
+  -- local halfTheta = mAsin(width / (2 * meteor.totalradius))
+  local ramp = { angle = angle, width = width }
+  tInsert(self.ramps, ramp)
+end
+
 function Meteor:PrepareDraw()
   self.rgb = { 0, (1-(self.age/100))*255, (self.age/100)*255 }
   self.dispX, self.dispY = displayMapRuler:XZtoXY(self.sx, self.sz)
   self.dispCraterRadius = mCeil(self.craterRadius / displayMapRuler.elmosPerPixel)
+  for r, ramp in pairs(self.ramps) do
+    ramp.dispX2, ramp.dispY2 = CirclePos(self.dispX, self.dispY, self.dispCraterRadius, ramp.angle)
+    self.ramps[r] = ramp
+  end
 end
 
 function Meteor:BuildNoise()

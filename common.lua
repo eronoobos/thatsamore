@@ -11,7 +11,7 @@ piTwelfth = math.pi / 12
 piSixteenth = math.pi / 16
 twoSqrtTwo = 2 * math.sqrt(2)
 naturalE = math.exp(1)
-radiansPerAngle = math.pi / 180
+radiansPerDegree = math.pi / 180
 
 mSqrt = math.sqrt
 mRandom = love.math.random --math.random
@@ -20,6 +20,8 @@ mMax = math.max
 mAtan2 = math.atan2
 mSin = math.sin
 mCos = math.cos
+mAsin = math.asin
+mAcos = math.acos
 mExp = math.exp
 mCeil = math.ceil
 mFloor = math.floor
@@ -118,6 +120,27 @@ function pairsByKeys (t, f)
     end
   end
   return iter
+end
+
+function AngleAdd(angle1, angle2)
+  return (angle1 + angle2) % twicePi
+end
+
+function AngleXYXY(x1, y1, x2, y2)
+  local dx = x2 - x1
+  local dy = y2 - y1
+  return mAtan2(dy, dx)
+end
+
+function CirclePos(cx, cy, dist, angle)
+  angle = angle or mRandom() * twicePi
+  local x = cx + dist * mCos(angle)
+  local y = cy + dist * mSin(angle)
+  return x, y
+end
+
+function AngleDist(angle1, angle2)
+  return mAbs((angle1 + pi -  angle2) % twicePi - pi)
 end
 
 function MinMaxRandom(minimum, maximum)

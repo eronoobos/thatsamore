@@ -6,6 +6,8 @@ local keyPress = {}
 local keyPresses = 0
 local mousePress = {}
 local mousePresses = 0
+local mouseAngle = 0
+local mouseAngleX2, mouseAngleY2 = 0, 0
 local commandBuffer
 local commandHistory = {}
 local commandHistoryPos = 1
@@ -129,6 +131,10 @@ function love.keypressed(key, isRepeat)
 				selectedMeteor:ShiftUp()
 			elseif key == "pagedown" then
 				selectedMeteor:ShiftDown()
+			elseif key == "r" then
+				-- local x, y = love.mouse.getPosition()
+				-- local angle = AngleXYXY(selectedMeteor.dispX, selectedMeteor.dispY, x, y)
+				selectedMeteor:AddRamp(mouseAngle, 1000)
 			end
 		end
 	end
@@ -175,6 +181,8 @@ function love.mousemoved(x, y, dx, dy)
 		end
 	end
 	if selectedMeteor then
+		mouseAngle = AngleXYXY(selectedMeteor.dispX, selectedMeteor.dispY, x, y)
+		mouseAngleX2, mouseAngleY2 = CirclePos(selectedMeteor.dispX, selectedMeteor.dispY, selectedMeteor.dispCraterRadius, mouseAngle)
 		if mousePress["l"] then
 			local mp = mousePress["l"]
 			if not mp.origMeteorDispX then
@@ -224,8 +232,21 @@ function love.draw()
 				love.graphics.setColor(255, 255, 0)
 				love.graphics.circle("fill", m.dispX, m.dispY, 6, 3)
 			end
+			if #m.ramps > 0 then
+				love.graphics.setLineWidth(7)
+				love.graphics.setColor(255, 127, 0)
+				for r, ramp in pairs(m.ramps) do
+					if not ramp.dispX2 then m:PrepareDraw() end
+					love.graphics.line(m.dispX, m.dispY, ramp.dispX2, ramp.dispY2)
+				end
+			end
 		end
 		if selectedMeteor then
+			if mouseAngleX2 then
+				love.graphics.setLineWidth(3)
+				love.graphics.setColor(127, 63, 0)
+				love.graphics.line(selectedMeteor.dispX, selectedMeteor.dispY, mouseAngleX2, mouseAngleY2)
+			end
 			love.graphics.setLineWidth(3)
 			love.graphics.setColor(255, 255, 255)
 			love.graphics.circle("line", selectedMeteor.dispX, selectedMeteor.dispY, selectedMeteor.dispCraterRadius, 8)
