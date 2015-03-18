@@ -53,6 +53,7 @@ function perlinComponent1D(seed, length, N, amplitude)
 end
 
 function perlin1D(seed, length, persistence, N, amplitude)
+  local max, min = 0, 0
   data = {}
   for i = 1, length do
     data[i] = 0
@@ -63,9 +64,11 @@ function perlin1D(seed, length, persistence, N, amplitude)
     comp = perlinComponent1D(seed+i, length, i, compAmplitude)
     for i = 1, length do
       data[i] = data[i] + comp[i]
+      if data[i] > max then max = data[i] end
+      if data[i] < min then min = data[i]  end
     end
   end
-  return data
+  return data, max, min
 end
 
 function interpolate2D(values, N)

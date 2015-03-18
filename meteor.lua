@@ -297,6 +297,7 @@ Crater = class(function(a, meteor, renderer)
   a.totalradius = a.radius + a.falloff
   a.totalradiusSq = a.totalradius * a.totalradius
   a.totalradiusPlusWobble = a.totalradius*(1+meteor.distWobbleAmount)
+  a.totalradiusPlusWobbleSq = a.totalradiusPlusWobble ^ 2
   a.xmin, a.xmax, a.ymin, a.ymax = renderer.mapRuler:RadiusBounds(a.x, a.y, a.totalradiusPlusWobble)
   a.radiusSq = a.radius * a.radius
   a.falloffSq = a.totalradiusSq - a.radiusSq
@@ -312,8 +313,10 @@ Crater = class(function(a, meteor, renderer)
     -- l = 2r * sin(θ/2)
     -- θ = 2 * asin(l/2r)
     local width = ramp.width / elmosPerPixel
-    local halfTheta = mAsin(width / (2 * a.totalradius))
-    local cRamp = { angle = ramp.angle, width = width, halfTheta = halfTheta }
+    local halfTheta = mAsin(width / (2 * a.totalradiusPlusWobble))
+    local cRamp = { angle = ramp.angle, width = width, halfTheta = halfTheta,
+      widthNoise = LinearNoise(10, 0.1, ramp.widthSeed, 0.5, 2),
+      angleNoise = LinearNoise(25, 0.1, ramp.angleSeed, 0.5, 4) }
     tInsert(a.ramps, cRamp)
   end
 
@@ -457,6 +460,28 @@ Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, an
 
   a.rgb = { 0, (1-(a.age/100))*255, (a.age/100)*255 }
   a.dispCraterRadius = mCeil(a.craterRadius / displayMapRuler.elmosPerPixel)
+end)
+
+LinearNoise = class(function(a, length, intensity, seed, persistence, N, amplitude)
+  a.noiseType = "Linear"
+  a.outValues = {}
+  a.absMaxValue = 0
+  a.angleDivisor = twicePi / length
+  a.length = length
+  a.intensity = intensity or 1
+  seed = seed or NewSeed()
+  a.seed = seed
+  persistence = persistence or 0.25
+  N = N or 6
+  amplitude = amplitude or 1
+  a.persistance = persistance
+  a.N = N
+  a.amplitude = amplitude
+  local values, min, max = perlin1D(seed, length, persistence, N, amplitude)
+  a.absMaxValue = mMax(mAbs(max), mAbs(min))
+  for n, v in ipairs(values) do
+    a.outValues[n] = (v / a.absMaxValue) * a.intensity
+  end
 end)
 
 WrapNoise = class(function(a, length, intensity, seed, persistence, N, amplitude)
@@ -1176,11 +1201,13 @@ function Crater:TerraceDistMod(distSq)
 end
 
 function Crater:HeightPixel(x, y)
+  if x < self.xmin or x > self.xmax or y < self.ymin or y > self.ymax then return 0, 0, false end
   local meteor = self.meteor
   local dx, dy = x-self.x, y-self.y
   local angle = AngleDXDY(dx, dy)
   local distWobbly = meteor.distNoise:Radial(angle) + 1
   local realDistSq = self:GetDistanceSq(x, y)
+  if realDistSq > self.totalradiusPlusWobbleSq then return 0, 0, false end
   -- local realRimRatio = realDistSq / radiusSq
   local distSq = realDistSq * distWobbly
   distSq = Crater:TerraceDistMod(distSq)
@@ -1191,11 +1218,13 @@ function Crater:HeightPixel(x, y)
   local rimHeight = meteor.craterRimHeight * heightWobbly
   local rimRatioPower = rimRatio ^ meteor.bowlPower
   if #self.ramps > 0 then
-    local dist = mSqrt(distSq)
+    local dist = mSqrt(realDistSq)
     local totalRatio = dist / self.totalradius
     for i, ramp in pairs(self.ramps) do
       local halfThetaHere = ramp.halfTheta / totalRatio
-      local angleDist = AngleDist(angle, ramp.angle)
+      halfThetaHere = halfThetaHere * (1+ramp.widthNoise:Rational(totalRatio))
+      local rampAngle = ramp.angle * (1+ramp.angleNoise:Rational(totalRatio))
+      local angleDist = AngleDist(angle, rampAngle)
       if angleDist < halfThetaHere then
         local angleRatio = angleDist / halfThetaHere
         local angleRatioSmooth = mSmoothstep(0, 1, angleRatio)
@@ -1510,10 +1539,8 @@ function Meteor:MetalGeothermal(metal, geothermal, overwrite)
 end
 
 function Meteor:AddRamp(angle, width)
-  -- l = 2r * sin(θ/2)
-  -- θ = 2 * asin(l/2r)
-  -- local halfTheta = mAsin(width / (2 * meteor.totalradius))
-  local ramp = { angle = angle, width = width }
+  -- width in meters
+  local ramp = { angle = angle, width = width, widthSeed = NewSeed(), angleSeed = NewSeed() }
   tInsert(self.ramps, ramp)
 end
 
@@ -1532,6 +1559,8 @@ function Meteor:BuildNoise()
     if type(k) == "string" and string.sub(k, -5) == "Noise" then
       if v.noiseType == "Wrap" then
         v = WrapNoise(v.length, v.intensity, v.seed, v.persistence, v.N, v.amplitude)
+      elseif v.noiseType == "Linear" then
+        v = LinearNoise(v.length, v.intensity, v.seed, v.persistence, v.N, v.amplitude)
       elseif v.noiseType == "TwoDimesnional" then
         v = TwoDimensionalNoise(v.seed, v.sideLength, v.intensity, v.persistence, v.N, v.amplitude, v.blackValue, v.whiteValue, v.doNotNormalize)
       end
@@ -1552,9 +1581,6 @@ function WrapNoise:Smooth(n)
   if n1 == n2 then return self:Output(n1) end
   local val1, val2 = self:Output(n1), self:Output(n2)
   local d = val2 - val1
-  if n2 < n1 then
-    -- spEcho(n, n1, n2, self.length)
-  end
   return val1 + (mSmoothstep(n1, n2, n) * d)
 end
 
@@ -1582,6 +1608,29 @@ function WrapNoise:Clamp(n)
     n = n - self.length
   end
   return n
+end
+
+--------------------------------------
+
+function LinearNoise:Regenerate()
+  self = LinearNoise(self.length, self.intensity, self.seed, self.persistence, self.N, self.amplitude)
+end
+
+function LinearNoise:Smooth(n)
+  local n1 = mFloor(n)
+  local n2 = mCeil(n)
+  if n1 == n2 then return self:Output(n1) end
+  local val1, val2 = self:Output(n1), self:Output(n2)
+  local d = val2 - val1
+  return val1 + (mSmoothstep(n1, n2, n) * d)
+end
+
+function LinearNoise:Rational(ratio)
+  return self:Smooth((ratio * (self.length - 1)) + 1)
+end
+
+function LinearNoise:Output(n)
+  return self.outValues[mCeil(n)] or 0
 end
 
 --------------------------------------
