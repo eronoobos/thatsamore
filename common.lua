@@ -15,6 +15,7 @@ radiansPerDegree = math.pi / 180
 
 mSqrt = math.sqrt
 mRandom = love.math.random --math.random
+mRandomSeed = love.math.setRandomSeed
 mMin = math.min
 mMax = math.max
 mAtan2 = math.atan2
@@ -105,7 +106,7 @@ function DiceRoll(dice)
 end
 
 function NewSeed()
-  return mCeil(mRandom()*1000)
+  return mCeil(mRandom()*9999)
 end
 
 function pairsByKeys (t, f)

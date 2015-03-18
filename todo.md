@@ -5,7 +5,10 @@
 - give a slight variability in mirrored meteor positions
 - optional base perlin noise
 - reorganize into
-	- meteor (meteor skeleton, only parameters and a seed packet)
+	- meteor (meteor skeleton, only parameters and a seed seed)
+		- seed seed meaning a seed with which to generate a sequence of random seeds for the impact/crater's perlin noises
 	- impact (all render resolution-independent calculations)
 		- gets all new noise keys from the meteor's seed packet
 	- crater (all render resolution-dependent calculations)
+- ideally, make all the stuff in meteor.lua independent from interface (UI and I/O). this way it can simply be included as part of the Spring version, rather than reimplemented.
+- output to 16-bit PNG not PGM

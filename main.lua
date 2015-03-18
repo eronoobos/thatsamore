@@ -50,8 +50,12 @@ function love.load()
 	end
     love.window.setMode(displayMapRuler.width, displayMapRuler.height, {resizable=false, vsync=false})
     if displayMapRuler.width == dWidth or displayMapRuler.height == dHeight then
-    	love.window.setFullscreen(true)
+    	love.window.setMode(displayMapRuler.width, displayMapRuler.height, {resizable=false, vsync=false, borderless=true})
     end
+    love.window.setTitle(displayMapRuler.width .. "x" .. displayMapRuler.height)
+    print("displaymapruler dimensions: " .. displayMapRuler.width .. "x" .. displayMapRuler.height)
+    local ww, wh = love.window.getDimensions()
+    print("window dimensions: " .. ww .. "x" .. wh)
     printLineHeight = printLineFont:getHeight()
     printLineWidth = mFloor(displayMapRuler.width / 2)
     maximumPrintLines = mFloor((displayMapRuler.height - 16) / printLineHeight) - 1
