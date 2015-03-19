@@ -267,7 +267,7 @@ function World:MeteorShower(number, minDiameter, maxDiameter, minVelocity, maxVe
   minDensity = minDensity or 4000
   maxDensity = maxDensity or 10000
   if underlyingMare then
-    self:AddMeteor(Game.mapSizeX/2, Game.mapSizeZ/2, MinMaxRandom(600, 800), 50, 60, 8000, 100, nil, nil, true)
+    self:AddMeteor(Game.mapSizeX/2, Game.mapSizeZ/2, MinMaxRandom(600, 800), 50, 60, 8000, 100, 0, nil, nil, nil, nil, true)
   end
   local hundredConv = 100 / number
   local diameterDif = maxDiameter - minDiameter
@@ -296,15 +296,11 @@ function World:ResetMeteorAges()
   end
 end
 
-function World:AddMeteor(sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, mirrorMeteor)
-  local m = Meteor(self, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, mirrorMeteor)
+function World:AddMeteor(sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, seedSeed, ramps, mirrorMeteor, noMirror)
+  local m = Meteor(self, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, seedSeed, ramps, mirrorMeteor)
   tInsert(self.meteors, m)
-  if self.mirror ~= "none" and not mirrorMeteor then
-    local nsx, nsz = self:MirrorXZ(sx, sz)
-    if nsx then
-      local mm = self:AddMeteor(nsx, nsz, VaryWithinBounds(diameterImpactor, 0.1, 1, 9999), VaryWithinBounds(velocityImpactKm, 0.1, 1, 120), VaryWithinBounds(angleImpact, 0.1, 1, 89), VaryWithinBounds(densityImpactor, 0.1, 1000, 10000), age, tostring(m.metal), tostring(m.geothermal), m)
-      m.mirrorMeteor = mm
-    end
+  if self.mirror ~= "none" and not mirrorMeteor and not noMirror then
+    m:Mirror(true)
   end
   self.heightBuf.changesPending = true
   m:Collide()
@@ -1280,7 +1276,7 @@ function Meteor:Move(sx, sz, noMirror)
     local nsx, nsz = self.world:MirrorXZ(sx, sz)
     if nsx then self.mirrorMeteor:Move(nsx, nsz, true) end
   end
-  self.sx, self.xz = sx, sz
+  self.sx, self.sz = sx, sz
   self:Collide()
 end
 
@@ -1362,6 +1358,17 @@ function Meteor:AddRamp(angle, width)
   tInsert(self.ramps, ramp)
 end
 
+function Meteor:Mirror(binding)
+  local nsx, nsz = self.world:MirrorXZ(self.sx, self.sz)
+  print(self.sx, self.sz, "mirror coords", nsx, nsz)
+  if nsx then
+    local bind
+    if binding then bind = self end
+    local mm = self.world:AddMeteor(nsx, nsz, VaryWithinBounds(self.diameterImpactor, 0.1, 1, 9999), VaryWithinBounds(self.velocityImpactKm, 0.1, 1, 120), VaryWithinBounds(self.angleImpact, 0.1, 1, 89), VaryWithinBounds(self.densityImpactor, 0.1, 1000, 10000), self.age, self.metal, self.geothermal, nil, nil, bind, true)
+    if binding then self.mirrorMeteor = mm end
+  end
+end
+
 function Meteor:PrepareDraw()
   self.rgb = { 0, (1-self.impact.ageRatio)*255, self.impact.ageRatio*255 }
   self.dispX, self.dispY = displayMapRuler:XZtoXY(self.sx, self.sz)
@@ -1370,6 +1377,10 @@ function Meteor:PrepareDraw()
     ramp.dispX2, ramp.dispY2 = CirclePos(self.dispX, self.dispY, self.dispCraterRadius, ramp.angle)
     self.ramps[r] = ramp
   end
+  self.infoStr = self.dispX .. ", " .. self.dispY .. "\n" .. self.dispCraterRadius .. " radius" .. "\n" .. self.metal .. " metal"
+  if self.geothermal then self.infoStr = self.infoStr .. "\n geothermal" end
+  self.infoX = self.dispX - (self.dispCraterRadius * 1.5)
+  self.infoY = self.dispY - (self.dispCraterRadius * 1.5)
 end
 
 ----------------------------------------------------------
@@ -1507,37 +1518,33 @@ end
 ----------------------------------------------------------
 
 WrapNoise = class(function(a, length, intensity, seed, persistence, N, amplitude)
-  a.noiseType = "Wrap"
-  local values = {}
-  a.outValues = {}
-  a.absMaxValue = 0
-  a.angleDivisor = twicePi / length
-  a.length = length
-  a.intensity = intensity or 1
+  intensity = intensity or 1
   seed = seed or NewSeed()
-  a.seed = seed
-  a.halfLength = length / 2
   persistence = persistence or 0.25
   N = N or 6
   amplitude = amplitude or 1
-  a.persistance = persistance
-  a.N = N
-  a.amplitude = amplitude
+  a.intensity = intensity
+  a.angleDivisor = twicePi / length
+  a.length = length
+  a.halfLength = length / 2
+  a.outValues = {}
+  local values = {}
+  local absMaxValue = 0
   local radius = mCeil(length / pi)
   local diameter = radius * 2
-  local yx = perlin2D( seed, diameter+1, diameter+1, persistence, N, amplitude )
+  local yx = perlin2D(seed, diameter+1, diameter+1, persistence, N, amplitude)
   local i = 1
   local angleIncrement = twicePi / length
   for angle = -pi, pi, angleIncrement do
     local x = mFloor(radius + (radius * mCos(angle))) + 1
     local y = mFloor(radius + (radius * mSin(angle))) + 1
     local val = yx[y][x]
-    if mAbs(val) > a.absMaxValue then a.absMaxValue = mAbs(val) end
+    if mAbs(val) > absMaxValue then absMaxValue = mAbs(val) end
     values[i] = val
     i = i + 1
   end
-  for n, v in ipairs(values) do
-    a.outValues[n] = (v / a.absMaxValue) * a.intensity
+  for n, v in pairs(values) do
+    a.outValues[n] = (v / absMaxValue) * intensity
   end
 end)
 
@@ -1579,24 +1586,17 @@ end
 ----------------------------------------------------------
 
 LinearNoise = class(function(a, length, intensity, seed, persistence, N, amplitude)
-  a.noiseType = "Linear"
-  a.outValues = {}
-  a.absMaxValue = 0
-  a.angleDivisor = twicePi / length
-  a.length = length
-  a.intensity = intensity or 1
+  intensity = intensity or 1
   seed = seed or NewSeed()
-  a.seed = seed
   persistence = persistence or 0.25
   N = N or 6
   amplitude = amplitude or 1
-  a.persistance = persistance
-  a.N = N
-  a.amplitude = amplitude
+  a.outValues = {}
+  a.length = length
   local values, min, max = perlin1D(seed, length, persistence, N, amplitude)
-  a.absMaxValue = mMax(mAbs(max), mAbs(min))
+  local absMaxValue = mMax(mAbs(max), mAbs(min))
   for n, v in ipairs(values) do
-    a.outValues[n] = (v / a.absMaxValue) * a.intensity
+    a.outValues[n] = (v / absMaxValue) * intensity
   end
 end)
 
@@ -1619,60 +1619,36 @@ end
 
 ----------------------------------------------------------
 
-TwoDimensionalNoise = class(function(a, seed, sideLength, intensity, persistence, N, amplitude, blackValue, whiteValue, doNotNormalize)
-  a.noiseType = "TwoDimensional"
-  a.sideLength = mCeil(sideLength)
-  a.halfSideLength = mFloor(a.sideLength / 2)
-  a.intensity = intensity or 1
+TwoDimensionalNoise = class(function(a, seed, sideLength, intensity, persistence, N, amplitude, blackValue, whiteValue)
+  sideLength = mCeil(sideLength)
+  intensity = intensity or 1
   persistence = persistence or 0.25
   N = N or 5
   amplitude = amplitude or 1
   seed = seed or NewSeed()
-  a.yx = perlin2D( seed, sideLength+1, sideLength+1, persistence, N, amplitude )
   blackValue = blackValue or 0
   whiteValue = whiteValue or 1
-  a.seed = seed
-  a.persistence = persistence
-  a.N = N
-  a.amplitude = amplitude
-  a.blackValue = blackValue
-  a.whiteValue = whiteValue
-  a.doNotNormalize = doNotNormalize
-  if not doNotNormalize then
-    local vmin, vmax = 0, 0
-    for y, xx in ipairs(a.yx) do
-      for x, v in ipairs(xx) do
-        if v > vmax then vmax = v end
-        if v < vmin then vmin = v end
-      end
+  local yx, vmin, vmax = perlin2D( seed, sideLength+1, sideLength+1, persistence, N, amplitude )
+  local vd = vmax - vmin
+  -- print("vmin", vmin, "vmax", vmax, "vd" , vd)
+  a.xy = {}
+  for y, xx in pairs(yx) do
+    for x, v in pairs(xx) do
+      a.xy[x] = a.xy[x] or {}
+      local nv = (v - vmin) / vd
+      nv = mMax(nv - blackValue, 0) / (1-blackValue)
+      nv = mMin(nv, whiteValue) / whiteValue
+      a.xy[x][y] = nv * intensity
     end
-    local vd = vmax - vmin
-    -- spEcho("vmin", vmin, "vmax", vmax, "vd" , vd)
-    a.xy = {}
-    for y, xx in ipairs(a.yx) do
-      for x, v in ipairs(xx) do
-        a.xy[x] = a.xy[x] or {}
-        local nv = (v - vmin) / vd
-        nv = mMax(nv - blackValue, 0) / (1-blackValue)
-        nv = mMin(nv, whiteValue) / whiteValue
-        a.xy[x][y] = nv * a.intensity
-      end
-    end
-    a.yx = nil
   end
+  yx = nil
 end)
 
 function TwoDimensionalNoise:Get(x, y)
   x, y = mFloor(x), mFloor(y)
-  if self.xy then
-    if not self.xy[x] then return 0 end
-    if not self.xy[x][y] then return 0 end
-    return self.xy[x][y]
-  end
-  if not self.yx then return 0 end
-  if not self.yx[y] then return 0 end
-  if not self.yx[y][x] then return 0 end
-  return (self.yx[y][x] + 1) * self.intensity
+  if not self.xy[x] then return 0 end
+  if not self.xy[x][y] then return 0 end
+  return self.xy[x][y]
 end
 
 ----------------------------------------------------------

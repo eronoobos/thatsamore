@@ -21,7 +21,7 @@ function print(...)
 	local line = ""
 	for i, str in ipairs({...}) do
 		if i > 1 then line = line .. "\t" end
-		line = line .. str
+		line = line .. tostring(str)
 	end
 	tInsert(printLines, line)
 	if logFile then logFile:write(line .. "\n") end
@@ -141,8 +141,11 @@ function love.keypressed(key, isRepeat)
 				-- local x, y = love.mouse.getPosition()
 				-- local angle = AngleXYXY(selectedMeteor.dispX, selectedMeteor.dispY, x, y)
 				selectedMeteor:AddRamp(mouseAngle, 1000)
+			elseif key == "=" then
+				print("mirror")
+				selectedMeteor:Mirror()
 			end
-		end
+ 		end
 	end
 end
 
@@ -232,11 +235,11 @@ function love.draw()
 		for i, m in pairs(myWorld.meteors) do
 			if m.metal > 0 then
 				love.graphics.setColor(255, 0, 0)
-				love.graphics.circle("fill", m.dispX, m.dispY, 4*m.metal, 4)
+				love.graphics.circle("fill", m.dispX, m.dispY, 6+(2*m.metal), 4)
 			end
 			if m.geothermal then
 				love.graphics.setColor(255, 255, 0)
-				love.graphics.circle("fill", m.dispX, m.dispY, 6, 3)
+				love.graphics.circle("fill", m.dispX, m.dispY, 4, 3)
 			end
 			if #m.ramps > 0 then
 				love.graphics.setLineWidth(7)
@@ -262,6 +265,10 @@ function love.draw()
 				love.graphics.line(selectedMeteor.dispX, selectedMeteor.dispY, selectedMeteor.mirroredMeteor.dispX, selectedMeteor.mirroredMeteor.dispY)
 				love.graphics.setColor(255, 255, 255)
 				love.graphics.circle("line", selectedMeteor.mirroredMeteor.dispX, selectedMeteor.mirroredMeteor.dispY, selectedMeteor.mirroredMeteor.dispCraterRadius, 8)
+			end
+			if not commandBuffer then
+				love.graphics.setColor(255,255,255)
+				love.graphics.print(selectedMeteor.infoStr, 8, 8)
 			end
 		end
 		local r = myWorld.renderers[1]

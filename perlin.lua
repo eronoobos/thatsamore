@@ -135,6 +135,7 @@ function perlin2D(seed, width, height, persistence, N, amplitude)
       data[r][c] = 0
     end
   end
+  local min, max = 0, 0
   for i = 1, N do
     compInterp = 2^(N-i)
     compAmplitude = amplitude * (persistence^(i-1))
@@ -142,8 +143,10 @@ function perlin2D(seed, width, height, persistence, N, amplitude)
     for r = 1, height do
       for c = 1, width do
         data[r][c] = data[r][c] + comp[r][c]
+        if data[r][c] < min then min = data[r][c] end
+        if data[r][c] > max then max = data[r][c] end
       end
     end
   end
-  return data
+  return data, min, max
 end
