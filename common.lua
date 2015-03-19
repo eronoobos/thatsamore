@@ -109,6 +109,15 @@ function NewSeed()
   return mCeil(mRandom()*9999)
 end
 
+function CreateSeedPacket(seedSeed, number)
+  mRandomSeed(seedSeed)
+  local packet = {}
+  for i = 1, number do
+    tInsert(packet, NewSeed())
+  end
+  return packet
+end
+
 function pairsByKeys (t, f)
   local a = {}
   for n in pairs(t) do tInsert(a, n) end

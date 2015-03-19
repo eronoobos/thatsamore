@@ -9,7 +9,7 @@ Game = {
 	mapSizeZ = mapSize512Z * 512,
 	squareSize = 8,
 	-- gravity = 130,
-	gravity = 50,
+	gravity = 130,
 	mapHardness = 100,
 	mapName = "Loony.smf",
 }

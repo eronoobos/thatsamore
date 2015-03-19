@@ -1,14 +1,8 @@
-- don't remove ramps when resizing or moving
+- index meteors, to allow saving meteor mirroring
 - UI for editing world & Game
 - add UI to change meteor velocity, angle, and density
-- allow multiple metal spots in one meteor, meteor.metal contains the number (to be drawn in a circle around the center at equal angles from each other, with a slight randomness so it doesn't look too perfect)
+- give slight randomness to metal spot arrangements so it doesn't look too perfect?
 - give a slight variability in mirrored meteor positions
 - optional base perlin noise
-- reorganize into
-	- meteor (meteor skeleton, only parameters and a seed seed)
-		- seed seed meaning a seed with which to generate a sequence of random seeds for the impact/crater's perlin noises
-	- impact (all render resolution-independent calculations)
-		- gets all new noise keys from the meteor's seed packet
-	- crater (all render resolution-dependent calculations)
 - ideally, make all the stuff in meteor.lua independent from interface (UI and I/O). this way it can simply be included as part of the Spring version, rather than reimplemented.
 - output to 16-bit PNG not PGM

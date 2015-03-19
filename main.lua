@@ -126,7 +126,9 @@ function love.keypressed(key, isRepeat)
 		if selectedMeteor then
 			-- keys for a selected meteor
 			if key == "m" then
-				selectedMeteor:MetalToggle()
+				selectedMeteor:IncreaseMetal()
+			elseif key == "n" then
+				selectedMeteor:DecreaseMetal()
 			elseif key == "g" then
 				selectedMeteor:GeothermalToggle()
 			elseif key == "d" then
@@ -228,9 +230,9 @@ function love.draw()
 			love.graphics.circle("fill", m.dispX, m.dispY, m.dispCraterRadius, 8)
 		end
 		for i, m in pairs(myWorld.meteors) do
-			if m.metal then
+			if m.metal > 0 then
 				love.graphics.setColor(255, 0, 0)
-				love.graphics.circle("fill", m.dispX, m.dispY, 4, 4)
+				love.graphics.circle("fill", m.dispX, m.dispY, 4*m.metal, 4)
 			end
 			if m.geothermal then
 				love.graphics.setColor(255, 255, 0)
