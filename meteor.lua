@@ -15,7 +15,7 @@ local AttributeDict = {
   [1] = { name = "Breccia", rgb = {128,128,128} },
   [2] = { name = "Peak", rgb = {0,255,0} },
   [3] = { name = "Ejecta", rgb = {0,255,255} },
-  [4] = { name = "Melt", rgb = {255,0,0} },
+  [4] = { name = "Melt", rgb = {128,64,64} },
   [5] = { name = "EjectaThin", rgb = {0,0,255} },
   [6] = { name = "Ray", rgb = {255,255,255} },
   [7] = { name = "Metal", rgb = {255,0,255} },
@@ -246,7 +246,7 @@ function World:Load(luaStr)
   end
   self.meteors = {}
   for i, m in pairs(newWorld.meteors) do
-    local newM = Meteor(self, m.sx, m.sz, m.diameterImpactor, m.velocityImpactKm, m.angleImpact, m.densityImpactor, m.age, m.metal, m.geothermal, m.mirror, m.ramps)
+    local newM = Meteor(self, m.sx, m.sz, m.diameterImpactor, m.velocityImpactKm, m.angleImpact, m.densityImpactor, m.age, m.metal, m.geothermal, m.seedSeed, m.ramps, m.mirrorMeteor)
     newM:Collide()
     self.meteors[i] = newM
   end
@@ -918,7 +918,7 @@ Crater = class(function(a, impact, renderer)
 
 
   if impact.complex and meteor.diameterImpactor <= 500 then
-    a.peakRadius = a.radius / 5.5
+    a.peakRadius = impact.peakRadius / elmosPerPixel
     a.peakRadiusSq = a.peakRadius ^ 2
     a.peakPersistence = 0.3*(world.complexDiameter/impact.diameterSimple)^2
     a.peakNoise = NoisePatch(a.x, a.y, a.peakRadius, a:PopSeed(), impact.craterPeakHeight, a.peakPersistence, 8-elmosPerPixelP2, 1, 0.5, 1, a:PopSeed(), 16, 0.75)
@@ -1189,7 +1189,7 @@ end
 ----------------------------------------------------------
 
 -- Meteor stores data, does not do any calcuations
-Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, mirrorMeteor)
+Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, angleImpact, densityImpactor, age, metal, geothermal, seedSeed, ramps, mirrorMeteor)
   print(sx, sz, diameterImpactor, age, mirrorMeteor)
   -- coordinates sx and sz are in spring coordinates (elmos)
   a.world = world
@@ -1203,9 +1203,9 @@ Meteor = class(function(a, world, sx, sz, diameterImpactor, velocityImpactKm, an
   a.age = mMax(mMin(mFloor(age or 0), 100), 0)
   a.metal = metal or 0
   a.geothermal = geothermal
+  a.seedSeed = seedSeed or NewSeed()
+  a.ramps = ramps or {}
   a.mirrorMeteor = mirrorMeteor
-  a.seedSeed = NewSeed()
-  a.ramps = {}
 end)
 
 function Meteor:Collide()
@@ -1442,6 +1442,7 @@ function Impact:Model()
     self.distWobbleAmount = MinMaxRandom(0.1, 0.2)
     self.distNoise = WrapNoise(mMax(mCeil(self.craterRadius / 20), 8), self.distWobbleAmount, self:PopSeed(), 0.4, 4)
     -- spEcho( mFloor(self.diameterImpactor), mFloor(self.diameterComplex), mFloor(self.depthComplex), self.diameterComplex/self.depthComplex, mFloor(self.diameterTransient), mFloor(self.depthTransient) )
+    self.peakRadius = self.craterRadius / 5.5
   else
     self.bowlPower = 1
     self.craterDepth = ((self.depthSimple + self.rimHeightSimple)  ) / world.metersPerElmo
@@ -1465,6 +1466,9 @@ function Impact:Model()
     local metalSpotDiameter = world.metalSpotRadius * 2
     local metalSpotSeparation = metalSpotDiameter * 2.5
     if slots > 1 then dist = metalSpotSeparation / 1.9 end
+    if self.complex then
+      dist = self.peakRadius * (1+self.peakRadialNoise.intensity)
+    end
     local idealSlotsThisTier = mCeil((dist * 2 * pi * 0.9) / metalSpotSeparation)
     local slotsThisTier = mMin(idealSlotsThisTier, meteor.metal)
     local currentSlot = 1
