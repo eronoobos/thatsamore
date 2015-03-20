@@ -211,7 +211,7 @@ World = class(function(a, metersPerElmo, baselevel, gravity, density, mirror, un
   a.metalAttribute = true -- draw metal spots on the attribute map?
   a.geothermalAttribute = true -- draw geothermal vents on the attribute map?
   a.rimTerracing = true
-  a.blastRayAge = 3
+  a.blastRayAge = 4
   a.blastRayAgeDivisor = 100 / a.blastRayAge
   a.underlyingPerlin = underlyingPerlin
   -- local echostr = ""
@@ -662,6 +662,7 @@ function Renderer:HeightFrame()
   local pixelsRendered = 0
   while pixelsRendered < self.pixelsPerFrame and #self.craters > 0 do
     local c = self.craters[1]
+    c:AddAgeNoise()
     c:GiveStartingHeight()
     while c.currentPixel <= c.area and pixelsRendered < self.pixelsPerFrame do
       local x, y, height, alpha, add = c:OneHeightPixel()
@@ -866,10 +867,9 @@ Crater = class(function(a, impact, renderer)
 
   a.x, a.y = renderer.mapRuler:XZtoXY(meteor.sx, meteor.sz)
   a.radius = impact.craterRadius / elmosPerPixel
+
   a.falloff = impact.craterRadius * 1.5 / elmosPerPixel
   a.peakC = (a.radius / 8) ^ 2
-
-
   a.totalradius = a.radius + a.falloff
   a.totalradiusSq = a.totalradius * a.totalradius
   a.totalradiusPlusWobble = a.totalradius*(1+impact.distWobbleAmount)
@@ -913,7 +913,7 @@ Crater = class(function(a, impact, renderer)
   end
 
 
-  if impact.complex and meteor.diameterImpactor <= 500 then
+  if impact.complex and not meteor.geothermal and meteor.diameterImpactor <= 500 then
     a.peakRadius = impact.peakRadius / elmosPerPixel
     a.peakRadiusSq = a.peakRadius ^ 2
     a.peakPersistence = 0.3*(world.complexDiameter/impact.diameterSimple)^2
@@ -933,15 +933,18 @@ Crater = class(function(a, impact, renderer)
     a.terraceMin = tmin
   end
 
-  if meteor.age > 0 then
-    a.ageNoise = NoisePatch(a.x, a.y, a.totalradiusPlusWobble, a:PopSeed(), 0.5-(impact.ageRatio*0.25), 0.33, 10-elmosPerPixelP2)
-  end
-
   a.width = a.xmax - a.xmin + 1
   a.height = a.ymax - a.ymin + 1
   a.area = a.width * a.height
   a.currentPixel = 0
 end)
+
+function Crater:AddAgeNoise()
+  if self.ageNoise then return end
+  if self.impact.meteor.age > 0 and self.totalradiusPlusWobble < 1000 then -- otherwise, way too much memory
+    self.ageNoise = NoisePatch(self.x, self.y, self.totalradiusPlusWobble, self:PopSeed(), 0.5-(self.impact.ageRatio*0.25), 0.33, 10-self.renderer.mapRuler.elmosPerPixelPowersOfTwo)
+  end
+end
 
 function Crater:PopSeed()
   return tRemove(self.seedPacket)
@@ -1165,7 +1168,7 @@ function Crater:AttributePixel(x, y)
       -- height = diameterTransientFourth / (112 * (fallDistSq^1.5))
       if mRandom() < alpha then return 3 end
     end
-    if meteor.age < world.blastRayAge then
+    if impact.blastNoise then
       local blastWobbly = impact.blastNoise:Radial(angle) + 0.5
       local blastRadiusSqWobbled = self.blastRadiusSq * blastWobbly
       local blastRatio = (distSq / blastRadiusSqWobbled)
@@ -1211,7 +1214,7 @@ end
 
 function Meteor:SetAge(age)
   self.age = age
-  self.impact.ageRatio = age / 100
+  self:Collide()
 end
 
 function Meteor:Delete(noMirror)
@@ -1377,8 +1380,9 @@ function Meteor:PrepareDraw()
     ramp.dispX2, ramp.dispY2 = CirclePos(self.dispX, self.dispY, self.dispCraterRadius, ramp.angle)
     self.ramps[r] = ramp
   end
-  self.infoStr = self.dispX .. ", " .. self.dispY .. "\n" .. self.dispCraterRadius .. " radius" .. "\n" .. self.metal .. " metal"
-  if self.geothermal then self.infoStr = self.infoStr .. "\n geothermal" end
+  self.infoStr = self.dispX .. ", " .. self.dispY .. "\n" .. self.dispCraterRadius .. " radius" .. "\n" .. self.metal .. " metal" .. "\n" .. self.age .. " age"
+  if self.geothermal then self.infoStr = self.infoStr .. "\ngeothermal" end
+  if self.impact and self.impact.blastNoise then self.infoStr = self.infoStr .. "\nblast rays" end
   self.infoX = self.dispX - (self.dispCraterRadius * 1.5)
   self.infoY = self.dispY - (self.dispCraterRadius * 1.5)
 end

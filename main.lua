@@ -233,6 +233,11 @@ function love.draw()
 			love.graphics.circle("fill", m.dispX, m.dispY, m.dispCraterRadius, 8)
 		end
 		for i, m in pairs(myWorld.meteors) do
+			if m.impact and m.impact.blastNoise then
+				love.graphics.setColor(0, 0, 255)
+				love.graphics.setLineWidth(3)
+				love.graphics.circle("line", m.dispX, m.dispY, m.dispCraterRadius-3, 5)
+			end
 			if m.metal > 0 then
 				love.graphics.setColor(255, 0, 0)
 				love.graphics.circle("fill", m.dispX, m.dispY, 6+(2*m.metal), 4)

@@ -6,3 +6,4 @@
 - optional base perlin noise
 - ideally, make all the stuff in meteor.lua independent from interface (UI and I/O). this way it can simply be included as part of the Spring version, rather than reimplemented.
 - output to 16-bit PNG not PGM
+- threading

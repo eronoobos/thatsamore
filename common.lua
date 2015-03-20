@@ -248,14 +248,6 @@ for i, name in pairs(MirrorTypes) do
   MirrorNames[name] = i
 end
 
-mapRulerNames = {
-  full = fullMapRuler,
-  l3dt = L3DTMapRuler,
-  height = heightMapRuler,
-  spring = heightMapRuler,
-  metal = metalMapRuler,
-}
-
 CommandWords = {
   meteor = function(words, myWorld, uiCommand)
     local radius = (words[5] or 10)
@@ -381,3 +373,11 @@ metalMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))
 L3DTMapRuler = MapRuler(4, (Game.mapSizeX / 4), (Game.mapSizeZ / 4))
 fullMapRuler = MapRuler(1)
 displayMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))
+
+mapRulerNames = {
+  full = fullMapRuler,
+  l3dt = L3DTMapRuler,
+  height = heightMapRuler,
+  spring = heightMapRuler,
+  metal = metalMapRuler,
+}
