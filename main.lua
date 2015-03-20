@@ -138,9 +138,9 @@ function love.keypressed(key, isRepeat)
 			elseif key == "pagedown" then
 				selectedMeteor:ShiftDown()
 			elseif key == "r" then
-				-- local x, y = love.mouse.getPosition()
-				-- local angle = AngleXYXY(selectedMeteor.dispX, selectedMeteor.dispY, x, y)
 				selectedMeteor:AddRamp(mouseAngle, 1000)
+			elseif key == "f" then
+				selectedMeteor:ClearRamps()
 			elseif key == "=" then
 				print("mirror")
 				selectedMeteor:Mirror()
