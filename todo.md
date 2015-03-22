@@ -1,9 +1,9 @@
 - index meteors, to allow saving meteor mirroring
-- UI for editing world & Game
+- UI for editing Game
 - add UI to change meteor velocity, angle, and density
 - give slight randomness to metal spot arrangements so it doesn't look too perfect?
 - give a slight variability in mirrored meteor positions
 - optional base perlin noise
 - ideally, make all the stuff in meteor.lua independent from interface (UI and I/O). this way it can simply be included as part of the Spring version, rather than reimplemented.
 - output to 16-bit PNG not PGM
-- threading
+- threading?

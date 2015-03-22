@@ -74,6 +74,10 @@ local WorldSaveBlackList = {
   "dispX2",
   "dispY2",
   "dispCraterRadius",
+  "complexDiameter",
+  "complexDiameterCutoff",
+  "complexDepthScaleFactor",
+  "blastRayAgeDivisor",
 }
 
 local WSBL = {}
@@ -188,16 +192,9 @@ end
 
 World = class(function(a, metersPerElmo, baselevel, gravity, density, mirror, underlyingPerlin, erosion)
   a.metersPerElmo = metersPerElmo or 1 -- meters per elmo for meteor simulation model only
-  a.metersPerSquare = a.metersPerElmo * Game.squareSize
-  spEcho(a.metersPerElmo, a.metersPerSquare)
   a.baselevel = baselevel or 0
   a.gravity = gravity or (Game.gravity / 130) * 9.8
   a.density = density or (Game.mapHardness / 100) * 2500
-  a.complexDiameter = 3200 / (a.gravity / 9.8)
-  local Dc = a.complexDiameter / 1000
-  a.complexDiameterCutoff = ((Dc / 1.17) * (Dc ^ 0.13)) ^ (1/1.13)
-  a.complexDiameterCutoff = a.complexDiameterCutoff * 1000
-  a.complexDepthScaleFactor = ((a.gravity / 1.6) + 1) / 2
   a.mirror = mirror or "none"
   a.minMetalMeteorDiameter = 2
   a.metalMeteorDiameter = 50
@@ -212,14 +209,24 @@ World = class(function(a, metersPerElmo, baselevel, gravity, density, mirror, un
   a.geothermalAttribute = true -- draw geothermal vents on the attribute map?
   a.rimTerracing = true
   a.blastRayAge = 4
-  a.blastRayAgeDivisor = 100 / a.blastRayAge
   a.underlyingPerlin = underlyingPerlin
   a.erosion = true -- erosion
   -- local echostr = ""
   -- for k, v in pairs(a) do echostr = echostr .. tostring(k) .. "=" .. tostring(v) .. " " end
   -- spEcho(echostr)
+  a:Calculate()
   a:Clear()
 end)
+
+function World:Calculate()
+  self.complexDiameter = 3200 / (self.gravity / 9.8)
+  local Dc = self.complexDiameter / 1000
+  self.complexDiameterCutoff = ((Dc / 1.17) * (Dc ^ 0.13)) ^ (1/1.13)
+  self.complexDiameterCutoff = self.complexDiameterCutoff * 1000
+  self.complexDepthScaleFactor = ((self.gravity / 1.6) + 1) / 2
+  self.blastRayAgeDivisor = 100 / self.blastRayAge
+  self:ResetMeteorAges()
+end
 
 function World:Clear()
   self.heightBuf = HeightBuffer(self, heightMapRuler)
@@ -245,6 +252,7 @@ function World:Load(luaStr)
     self[k] = v
   end
   self.meteors = {}
+  self:Calculate()
   for i, m in pairs(newWorld.meteors) do
     local newM = Meteor(self, m.sx, m.sz, m.diameterImpactor, m.velocityImpactKm, m.angleImpact, m.densityImpactor, m.age, m.metal, m.geothermal, m.seedSeed, m.ramps, m.mirrorMeteor)
     newM:Collide()
@@ -291,6 +299,7 @@ function World:MeteorShower(number, minDiameter, maxDiameter, minVelocity, maxVe
 end
 
 function World:ResetMeteorAges()
+  if not self.meteors then return end
   for i, m in pairs(self.meteors) do
     m:SetAge(((#self.meteors-i)/#self.meteors)*100)
   end

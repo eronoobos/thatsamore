@@ -15,6 +15,10 @@ local selectedMeteor
 local testNoise = false
 local testNoiseMap
 
+local worldEditMode
+local worldEditKey
+local worldEditInput
+
 printLines = {}
 realPrint = print
 function print(...)
@@ -66,7 +70,9 @@ function love.quit()
 end
 
 function love.textinput(t)
-	if commandBuffer then
+	if worldEditInput then
+		worldEditInput = worldEditInput .. t
+	elseif commandBuffer then
 		commandBuffer = commandBuffer .. t
 	else
 		if commandKeys[t] then InterpretCommand(commandKeys[t], myWorld) end
@@ -97,7 +103,42 @@ function love.keypressed(key, isRepeat)
 		end
 		commandHistoryPos = #commandHistory+1
 	end
-	if commandBuffer then
+	if worldEditMode then
+		if key == "w" then
+			worldEditMode = nil
+		elseif key == "return" then
+			if worldEditInput then
+				local result = tonumber(worldEditInput) or worldEditInput == "true" or worldEditInput
+				myWorld[worldEditKey] = result
+				myWorld:Calculate()
+				worldEditInput = nil
+			else
+				worldEditInput = ""
+			end
+		elseif key == "down" then
+			local nextOne
+			for k, v in pairs(myWorld) do
+				if not worldEditBlackList[k] and type(v) ~= "table" then
+					if nextOne then
+						worldEditKey = k
+						break
+					end
+					if k == worldEditKey then nextOne = true end
+				end
+			end
+		elseif key == "up" then
+			local prevOne
+			for k, v in pairs(myWorld) do
+				if not worldEditBlackList[k] and type(v) ~= "table" then
+					if k == worldEditKey then
+						worldEditKey = prevOne or worldEditKey
+						break
+					end
+					prevOne = k
+				end
+			end
+		end
+	elseif commandBuffer then
 		if key == "backspace" then
 			if commandBuffer then
 				commandBuffer = commandBuffer:sub(1,-2)
@@ -115,6 +156,14 @@ function love.keypressed(key, isRepeat)
 			local x, y = love.mouse.getPosition()
 			local sx, sz = displayMapRuler:XYtoXZ(x, y)
 			myWorld:AddMeteor(sx, sz)
+		elseif key == "w" then
+			worldEditMode = true
+			for k, v in pairs(myWorld) do
+				if not worldEditBlackList[k] and type(v) ~= "table" then
+					worldEditKey = k
+					break
+				end
+			end
 		elseif key == "x" then
 			testNoise = not testNoise
 			if testNoise then
@@ -230,7 +279,9 @@ function love.draw()
 		for i, m in pairs(myWorld.meteors) do
 			if not m.rgb then m:PrepareDraw() end
 			love.graphics.setColor(m.rgb[1], m.rgb[2], m.rgb[3])
-			love.graphics.circle("fill", m.dispX, m.dispY, m.dispCraterRadius, 8)
+			local segments = 6
+			if m.impact and m.impact.complex then segments = 12 end
+			love.graphics.circle("fill", m.dispX, m.dispY, m.dispCraterRadius, segments)
 		end
 		for i, m in pairs(myWorld.meteors) do
 			if m.impact and m.impact.blastNoise then
@@ -271,7 +322,7 @@ function love.draw()
 				love.graphics.setColor(255, 255, 255)
 				love.graphics.circle("line", selectedMeteor.mirroredMeteor.dispX, selectedMeteor.mirroredMeteor.dispY, selectedMeteor.mirroredMeteor.dispCraterRadius, 8)
 			end
-			if not commandBuffer then
+			if not commandBuffer and not worldEditMode then
 				love.graphics.setColor(255,255,255)
 				love.graphics.print(selectedMeteor.infoStr, 8, 8)
 			end
@@ -293,7 +344,28 @@ function love.draw()
 		love.graphics.setColor(255,255,255)
 		love.graphics.draw(previewCanvas)
 	end
-	if commandBuffer then
+	if worldEditMode then
+		love.graphics.setFont(commandLineFont)
+		love.graphics.setColor(255, 0, 0)
+		love.graphics.print("WORLD", 8, 8)
+		local i = 1
+		for k, v in pairs(myWorld) do
+			if not worldEditBlackList[k] and type(v) ~= "table" then
+				local c = k .. " = " .. tostring(v)
+				local r, g, b = 255, 255, 255
+				if k == worldEditKey then
+					r, g, b = 0, 255, 0
+					if worldEditInput then
+						c = k .. " = " .. worldEditInput .. "_"
+					end
+				end
+				love.graphics.setColor(r or 255, g or 255, b or 255)
+				love.graphics.setLineWidth(5)
+				love.graphics.print(c, 8, 8 + (i*commandLineFont:getHeight()))
+				i = i + 1
+			end
+		end
+	elseif commandBuffer then
 		local maxLen = commandBuffer:len()
 		local maxStr = commandBuffer
 		for i, c in pairs(commandHistory) do
