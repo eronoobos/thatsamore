@@ -200,11 +200,13 @@ World = class(function(a, metersPerElmo, baselevel, gravity, density, mirror, un
   a.metalMeteorDiameter = 50
   a.metalMeteorTarget = 20
   a.metalSpotAmount = 2.0
-  a.metalSpotRadius = 50 -- elmos, for the attribute map
+  a.metalSpotRadius = 50 -- elmos
+  a.metalSpotDepth = 20
   a.minGeothermalMeteorDiameter = 20
   a.maxGeothermalMeteorDiameter = 100
   a.geothermalMeteorTarget = 4
-  a.geothermalRadius = 30 -- elmos, for the attribute map
+  a.geothermalRadius = 16 -- elmos
+  a.geothermalDepth = 10
   a.metalAttribute = true -- draw metal spots on the attribute map?
   a.geothermalAttribute = true -- draw geothermal vents on the attribute map?
   a.rimTerracing = true
@@ -258,7 +260,7 @@ function World:Load(luaStr)
     newM:Collide()
     self.meteors[i] = newM
   end
-  self.heightBuf.changesPending = true
+  if self.heightBuf then self.heightBuf.changesPending = true end
   spEcho("world loaded with " .. #self.meteors .. " meteors")
 end
 
@@ -311,7 +313,7 @@ function World:AddMeteor(sx, sz, diameterImpactor, velocityImpactKm, angleImpact
   if self.mirror ~= "none" and not mirrorMeteor and not noMirror then
     m:Mirror(true)
   end
-  self.heightBuf.changesPending = true
+  if self.heightBuf then self.heightBuf.changesPending = true end
   m:Collide()
   return m
 end
@@ -912,7 +914,7 @@ Crater = class(function(a, impact, renderer)
     for i, spot in pairs(impact.metalSpots) do
       local x, y = renderer.mapRuler:XZtoXY(spot.x, spot.z)
       local radius = mCeil(world.metalSpotRadius / elmosPerPixel)
-      local noise = NoisePatch(x, y, radius, a:PopSeed(), 1, 0.5, 5-elmosPerPixelP2)
+      local noise = NoisePatch(x, y, radius, a:PopSeed(), world.metalSpotDepth, 0.3, 5-elmosPerPixelP2, 1, 0.67)
       local cSpot = { x = x, y = y, metal = spot.metal, radius = radius, radiusSq = radius^2, noise = noise }
       tInsert(a.metalSpots, cSpot)
     end
@@ -920,16 +922,15 @@ Crater = class(function(a, impact, renderer)
   if meteor.geothermal and world.geothermalAttribute then
     a.geothermalRadius = mCeil(world.geothermalRadius / elmosPerPixel)
     a.geothermalRadiusSq = a.geothermalRadius^2
-    a.geothermalNoise = WrapNoise(16, a.geothermalRadiusSq, a:PopSeed(), 1, 1)
+    a.geothermalNoise = WrapNoise(22, 1, a:PopSeed(), 1, 1)
   end
 
 
   if impact.complex and not meteor.geothermal then
     a.peakRadius = impact.peakRadius / elmosPerPixel
     a.peakRadiusSq = a.peakRadius ^ 2
-    a.peakPersistence = 0.3*(world.complexDiameter/impact.diameterSimple)^2
     local baseN = 8 + mFloor(impact.peakRadius / 300)
-    a.peakNoise = NoisePatch(a.x, a.y, a.peakRadius, a:PopSeed(), impact.craterPeakHeight, a.peakPersistence, baseN-elmosPerPixelP2, 1, 0.5, 1, a:PopSeed(), 16, 0.75)
+    a.peakNoise = NoisePatch(a.x, a.y, a.peakRadius, a:PopSeed(), impact.craterPeakHeight, 0.4, baseN-elmosPerPixelP2, 1, 0.5, 1, a:PopSeed(), 16, 0.75)
   end
 
   if impact.terraceSeeds then
@@ -1001,36 +1002,10 @@ function Crater:TerraceDistMod(distSq, angle)
       end
       if below and above then break end
     end
-    -- if not below and distSq > self.terraceMin then
-    --   below = self.terraceMin
-    -- end
-    -- if not above and distSq < self.radiusSq then
-    --   above = self.radiusSq
-    -- end
     if above and below then
       local ratio = mSmoothstep(below, above, distSq)
       distSq = mMix(below, above, ratio)
     end
-    --[[
-      if distSq <= here then
-        local below, belowMax
-        if self.terraces[i-1] then
-          below = self.terraces[i-1].max - self.terraces[i-1].noise:Radial(angle)
-          belowMax = self.terraces[i-1].max
-        else
-          below = self.terraceMin
-          belowMax = self.terraceMin
-        end
-        if distSq >= below then
-          local ratio = mSmoothstep(below, here, distSq)
-          distSq = mMix(belowMax, t.max, ratio)
-          break
-        end
-      elseif i == #self.terraces and distSq > here and distSq < self.radiusSq then
-        local ratio = mSmoothstep(here, self.radiusSq, distSq)
-        distSq = mMix(t.max, self.radiusSq, ratio)
-      end
-    ]]--
   end
   return distSq
 end
@@ -1039,6 +1014,7 @@ function Crater:HeightPixel(x, y)
   if x < self.xmin or x > self.xmax or y < self.ymin or y > self.ymax then return 0, 0, false end
   local impact = self.impact
   local meteor = self.impact.meteor
+  local world = meteor.world
   local dx, dy = x-self.x, y-self.y
   local angle = AngleDXDY(dx, dy)
   local distWobbly = impact.distNoise:Radial(angle) + 1
@@ -1079,6 +1055,21 @@ function Crater:HeightPixel(x, y)
       rimRatioPower = mMix(rimRatioPower, smooth, impact.ageRatio)
     end
     height = rimHeight - ((1 - rimRatioPower)*impact.craterDepth)
+    if self.geothermalNoise then
+      if realDistSq < self.geothermalRadiusSq * 2 then
+        local geoWobbly = self.geothermalNoise:Radial(angle) + 1
+        local geoRadiusSqWobbled = self.geothermalRadiusSq * geoWobbly
+        local geoRatio = mMin(1, (realDistSq / geoRadiusSqWobbled) ^ 0.5)
+        print(geoRatio)
+        height = height - ((1-geoRatio) * world.geothermalDepth)
+      end
+    end
+    if meteor.metal > 0 then
+      for i, spot in pairs(self.metalSpots) do
+        local metal = spot.noise:Get(x, y)
+        height = height - metal
+      end
+    end
     if impact.complex then
       if self.peakNoise then
         local peak = self.peakNoise:Get(x, y)
@@ -1168,13 +1159,18 @@ function Crater:AttributePixel(x, y)
   local height
   if distSq <= self.radiusSq then
     height = rimHeight - ((1 - rimRatioPower)*impact.craterDepth)
-    if self.geothermalNoise and realDistSq < self.geothermalNoise:Radial(angle) then
-      return 8
+    if self.geothermalNoise then
+      if realDistSq < self.geothermalRadiusSq * 2 then
+        local geoWobbly = self.geothermalNoise:Radial(angle) + 1
+        local geoRadiusSqWobbled = self.geothermalRadiusSq * geoWobbly
+        local geoRatio = (realDistSq / geoRadiusSqWobbled) ^ 0.5
+        if mRandom() > geoRatio then return 8 end
+      end
     end
     if meteor.metal > 0 then
       for i, spot in pairs(self.metalSpots) do
         local metal = spot.noise:Get(x, y)
-        if metal > 0.25 then return 7 end
+        if metal > 0.1 then return 7 end
       end
     end
     if impact.complex then
@@ -1274,6 +1270,16 @@ function Meteor:Delete(noMirror)
   end
   self.impact = nil
   self = nil
+end
+
+function Meteor:NextSeed()
+  self.seedSeed = NextSeed(self.seedSeed)
+  self:Collide()
+end
+
+function Meteor:PreviousSeed()
+  self.seedSeed = PreviousSeed(self.seedSeed)
+  self:Collide()
 end
 
 function Meteor:ShiftUp()
@@ -1430,7 +1436,7 @@ function Meteor:PrepareDraw()
     ramp.dispX2, ramp.dispY2 = CirclePos(self.dispX, self.dispY, self.dispCraterRadius, ramp.angle)
     self.ramps[r] = ramp
   end
-  self.infoStr = self.dispX .. ", " .. self.dispY .. "\n" .. self.dispCraterRadius .. " radius" .. "\n" .. self.metal .. " metal" .. "\n" .. self.age .. " age"
+  self.infoStr = self.dispX .. ", " .. self.dispY .. "\n" .. self.dispCraterRadius .. " radius" .. "\n" .. self.metal .. " metal" .. "\n" .. self.age .. " age" .. "\n" .. self.seedSeed .. " seed"
   if self.geothermal then self.infoStr = self.infoStr .. "\ngeothermal" end
   if self.impact and self.impact.blastNoise then self.infoStr = self.infoStr .. "\nblast rays" end
   self.infoX = self.dispX - (self.dispCraterRadius * 1.5)

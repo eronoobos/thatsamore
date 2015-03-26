@@ -109,6 +109,14 @@ function NewSeed()
   return mCeil(mRandom()*9999)
 end
 
+function NextSeed(seed)
+  return mMax(1, (mCeil(seed) + 1) % 10000)
+end
+
+function PreviousSeed(seed)
+  return mMax(1, mMin(9999, (mCeil(seed) - 1) % 10000))
+end
+
 function CreateSeedPacket(seedSeed, number)
   mRandomSeed(seedSeed)
   local packet = {}

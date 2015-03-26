@@ -191,8 +191,11 @@ function love.keypressed(key, isRepeat)
 			elseif key == "f" then
 				selectedMeteor:ClearRamps()
 			elseif key == "=" then
-				print("mirror")
 				selectedMeteor:Mirror()
+			elseif key == "s" then
+				selectedMeteor:NextSeed()				
+			elseif key == "a" then
+				selectedMeteor:PreviousSeed()
 			end
  		end
 	end
