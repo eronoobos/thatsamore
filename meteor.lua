@@ -190,7 +190,9 @@ end
 
 -- classes and methods organized by class: -----------------------------------
 
-World = class(function(a, metersPerElmo, baselevel, gravity, density, mirror, underlyingPerlin, erosion)
+World = class(function(a, mapSize512X, mapSize512Z, metersPerElmo, baselevel, gravity, density, mirror, underlyingPerlin, erosion)
+  a.mapSize512X = mapSize512X or 8
+  a.mapSize512Z = mapSize512Z or 8
   a.metersPerElmo = metersPerElmo or 1 -- meters per elmo for meteor simulation model only
   a.baselevel = baselevel or 0
   a.gravity = gravity or (Game.gravity / 130) * 9.8
@@ -221,6 +223,14 @@ World = class(function(a, metersPerElmo, baselevel, gravity, density, mirror, un
 end)
 
 function World:Calculate()
+  self.mapSizeX = self.mapSize512X * 512
+  self.mapSizeZ = self.mapSize512Z * 512
+  heightMapRuler = MapRuler(self, nil, (self.mapSizeX / Game.squareSize) + 1, (self.mapSizeZ / Game.squareSize) + 1)
+  metalMapRuler = MapRuler(self, 16, (self.mapSizeX / 16), (self.mapSizeZ / 16))
+  L3DTMapRuler = MapRuler(self, 4, (self.mapSizeX / 4), (self.mapSizeZ / 4))
+  fullMapRuler = MapRuler(self, 1)
+  ResetDisplay(self)
+
   self.complexDiameter = 3200 / (self.gravity / 9.8)
   local Dc = self.complexDiameter / 1000
   self.complexDiameterCutoff = ((Dc / 1.17) * (Dc ^ 0.13)) ^ (1/1.13)
@@ -277,7 +287,7 @@ function World:MeteorShower(number, minDiameter, maxDiameter, minVelocity, maxVe
   minDensity = minDensity or 4000
   maxDensity = maxDensity or 10000
   if underlyingMare then
-    self:AddMeteor(Game.mapSizeX/2, Game.mapSizeZ/2, MinMaxRandom(600, 800), 50, 60, 8000, 100, 0, nil, nil, nil, nil, true)
+    self:AddMeteor(self.mapSizeX/2, self.mapSizeZ/2, MinMaxRandom(600, 800), 50, 60, 8000, 100, 0, nil, nil, nil, nil, true)
   end
   local hundredConv = 100 / number
   local diameterDif = maxDiameter - minDiameter
@@ -288,8 +298,8 @@ function World:MeteorShower(number, minDiameter, maxDiameter, minVelocity, maxVe
     local velocity = MinMaxRandom(minVelocity, maxVelocity)
     local angle = MinMaxRandom(minAngle, maxAngle)
     local density = MinMaxRandom(minDensity, maxDensity)
-    local x = mFloor(mRandom() * Game.mapSizeX)
-    local z = mFloor(mRandom() * Game.mapSizeZ)
+    local x = mFloor(mRandom() * self.mapSizeX)
+    local z = mFloor(mRandom() * self.mapSizeZ)
     self:AddMeteor(x, z, diameter, velocity, angle, density, mFloor((number-n)*hundredConv))
   end
   for i = #self.meteors, 1, -1 do
@@ -367,24 +377,25 @@ end
 function World:MirrorXZ(x, z)
   local nx, nz
   if self.mirror == "reflectionalx" then
-    nx = Game.mapSizeX - x
+    nx = self.mapSizeX - x
     nz = z+0
   elseif self.mirror == "reflectionalz" then
     nx = x+0
-    nz = Game.mapSizeZ - z
+    nz = self.mapSizeZ - z
   elseif self.mirror == "rotational" then
-    nx = Game.mapSizeX - x
-    nz = Game.mapSizeZ - z
+    nx = self.mapSizeX - x
+    nz = self.mapSizeZ - z
   end
   return nx, nz
 end
 
 ----------------------------------------------------------
 
-MapRuler = class(function(a, elmosPerPixel, width, height)
-  elmosPerPixel = elmosPerPixel or Game.mapSizeX / (width-1)
-  width = width or mCeil(Game.mapSizeX / elmosPerPixel)
-  height = height or mCeil(Game.mapSizeZ / elmosPerPixel)
+MapRuler = class(function(a, world, elmosPerPixel, width, height)
+  elmosPerPixel = elmosPerPixel or world.mapSizeX / (width-1)
+  width = width or mCeil(world.mapSizeX / elmosPerPixel)
+  height = height or mCeil(world.mapSizeZ / elmosPerPixel)
+  a.world = world
   a.elmosPerPixel = elmosPerPixel
   a.width = width
   a.height = height
@@ -403,11 +414,9 @@ end)
 
 function MapRuler:XZtoXY(x, z)
   if self.elmosPerPixel == 1 then
-    -- return x+1, (Game.mapSizeZ - z)+1
     return x+1, z+1
   else
     local hx = mFloor(x / self.elmosPerPixel) + 1
-    -- local hy = mFloor((Game.mapSizeZ - z) / self.elmosPerPixel) + 1
     local hy = mFloor(z / self.elmosPerPixel) + 1
     return hx, hy
   end
@@ -415,11 +424,9 @@ end
 
 function MapRuler:XYtoXZ(x, y)
   if self.elmosPerPixel == 1 then
-    -- return x-1, (Game.mapSizeZ - (y-1))
     return x-1, y-1
   else
     local sx = mFloor((x-1) * self.elmosPerPixel)
-    -- local sz = mFloor(Game.mapSizeZ - ((y-1) * self.elmosPerPixel))
     local sz = mFloor((y-1) * self.elmosPerPixel)
     return sx, sz
   end
@@ -699,7 +706,6 @@ function Renderer:HeightFrame()
 end
 
 function Renderer:HeightFinish()
-  -- spLevelHeightMap(0, 0, Game.mapSizeX, Game.mapSizeZ, self.world.baselevel)
   if not self.heightBuf.directToSpring then
     -- self.heightBuf:WriteToSpring(self.uiCommand)
     self.dontEndUiCommand = true

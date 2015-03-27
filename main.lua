@@ -42,27 +42,8 @@ function love.load()
 	commandLineFont = love.graphics.newFont("fonts/SourceCodePro-Medium.ttf", 16)
 	printLineFont = love.graphics.newFont("fonts/SourceCodePro-Medium.ttf", 12)
 	love.keyboard.setKeyRepeat(true)
-	myWorld = World(4, 1000)
-	local dWidth, dHeight = love.window.getDesktopDimensions()
-	for p = 0, 4 do
-		local pixelsPerElmo = 2 ^ p
-		local testWidth, testHeight = Game.mapSizeX / pixelsPerElmo, Game.mapSizeZ / pixelsPerElmo
-		if testWidth <= dWidth and testHeight <= dHeight then
-			displayMapRuler = MapRuler(pixelsPerElmo, Game.mapSizeX / pixelsPerElmo, Game.mapSizeZ / pixelsPerElmo)
-			break
-		end
-	end
-    love.window.setMode(displayMapRuler.width, displayMapRuler.height, {resizable=false, vsync=false})
-    if displayMapRuler.width == dWidth or displayMapRuler.height == dHeight then
-    	love.window.setMode(displayMapRuler.width, displayMapRuler.height, {resizable=false, vsync=false, borderless=true})
-    end
-    love.window.setTitle(displayMapRuler.width .. "x" .. displayMapRuler.height)
-    print("displaymapruler dimensions: " .. displayMapRuler.width .. "x" .. displayMapRuler.height)
-    local ww, wh = love.window.getDimensions()
-    print("window dimensions: " .. ww .. "x" .. wh)
-    printLineHeight = printLineFont:getHeight()
-    printLineWidth = mFloor(displayMapRuler.width / 2)
-    maximumPrintLines = mFloor((displayMapRuler.height - 16) / printLineHeight) - 1
+	myWorld = World(nil, nil, 4, 1000)
+	ResetDisplay(myWorld)
 end
 
 function love.quit()

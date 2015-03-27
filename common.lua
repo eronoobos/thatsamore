@@ -374,13 +374,30 @@ function PrintCommandLine(lineStr, pos, r, g, b)
   love.graphics.print(outStr, 8, y)
 end
 
--- globals used here and to export:
+function ResetDisplay(myWorld)
+  local dWidth, dHeight = love.window.getDesktopDimensions()
+  for p = 0, 4 do
+    local elmosPerPixel = 2 ^ p
+    local testWidth, testHeight = myWorld.mapSizeX / elmosPerPixel, myWorld.mapSizeZ / elmosPerPixel
+    if testWidth <= dWidth and testHeight <= dHeight then
+      displayMapRuler = MapRuler(myWorld, elmosPerPixel, myWorld.mapSizeX / elmosPerPixel, myWorld.mapSizeZ / elmosPerPixel)
+      break
+    end
+  end
+    love.window.setMode(displayMapRuler.width, displayMapRuler.height, {resizable=false, vsync=false})
+    if displayMapRuler.width == dWidth or displayMapRuler.height == dHeight then
+      love.window.setMode(displayMapRuler.width, displayMapRuler.height, {resizable=false, vsync=false, borderless=true})
+    end
+    love.window.setTitle("map: " .. myWorld.mapSize512X .. "x" .. myWorld.mapSize512Z .. " elmos: " .. myWorld.mapSizeX .. "x" .. myWorld.mapSizeZ .. " display:" .. displayMapRuler.width .. "x" .. displayMapRuler.height .. " (1:" .. displayMapRuler.elmosPerPixel.. ")")
+    print("displaymapruler dimensions: " .. displayMapRuler.width .. "x" .. displayMapRuler.height)
+    local ww, wh = love.window.getDimensions()
+    print("window dimensions: " .. ww .. "x" .. wh)
+    printLineHeight = printLineFont:getHeight()
+    printLineWidth = mFloor(displayMapRuler.width / 2)
+    maximumPrintLines = mFloor((displayMapRuler.height - 16) / printLineHeight) - 1
+end
 
-heightMapRuler = MapRuler(nil, (Game.mapSizeX / Game.squareSize) + 1, (Game.mapSizeZ / Game.squareSize) + 1)
-metalMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))
-L3DTMapRuler = MapRuler(4, (Game.mapSizeX / 4), (Game.mapSizeZ / 4))
-fullMapRuler = MapRuler(1)
-displayMapRuler = MapRuler(16, (Game.mapSizeX / 16), (Game.mapSizeZ / 16))
+-- globals used here and to export:
 
 mapRulerNames = {
   full = fullMapRuler,

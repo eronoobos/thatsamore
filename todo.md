@@ -1,5 +1,4 @@
 - index meteors, to allow saving meteor mirroring
-- UI for editing Game
 - add UI to change meteor velocity, angle, and density
 - give slight randomness to metal spot arrangements so it doesn't look too perfect?
 - give a slight variability in mirrored meteor positions
