@@ -229,6 +229,15 @@ function World:Calculate()
   metalMapRuler = MapRuler(self, 16, (self.mapSizeX / 16), (self.mapSizeZ / 16))
   L3DTMapRuler = MapRuler(self, 4, (self.mapSizeX / 4), (self.mapSizeZ / 4))
   fullMapRuler = MapRuler(self, 1)
+
+  mapRulerNames = {
+    full = fullMapRuler,
+    l3dt = L3DTMapRuler,
+    height = heightMapRuler,
+    spring = heightMapRuler,
+    metal = metalMapRuler,
+  }
+
   ResetDisplay(self)
 
   self.complexDiameter = 3200 / (self.gravity / 9.8)
@@ -676,6 +685,7 @@ end
 
 function Renderer:HeightInit()
   self.totalProgress = self.totalCraterArea
+  self.metalSpots = {}
 end
 
 function Renderer:HeightFrame()
@@ -920,7 +930,7 @@ Crater = class(function(a, impact, renderer)
     for i, spot in pairs(impact.metalSpots) do
       local x, y = renderer.mapRuler:XZtoXY(spot.x, spot.z)
       local radius = mCeil(world.metalSpotRadius / elmosPerPixel)
-      local noise = NoisePatch(x, y, radius, a:PopSeed(), world.metalSpotDepth, 0.3, 5-elmosPerPixelP2, 1, 0.67)
+      local noise = NoisePatch(x, y, radius, a:PopSeed(), world.metalSpotDepth, 0.3, 5-elmosPerPixelP2, 1, 0.4)
       local cSpot = { x = x, y = y, metal = spot.metal, radius = radius, radiusSq = radius^2, noise = noise }
       tInsert(a.metalSpots, cSpot)
     end
@@ -936,7 +946,7 @@ Crater = class(function(a, impact, renderer)
     a.peakRadius = impact.peakRadius / elmosPerPixel
     a.peakRadiusSq = a.peakRadius ^ 2
     local baseN = 8 + mFloor(impact.peakRadius / 300)
-    a.peakNoise = NoisePatch(a.x, a.y, a.peakRadius, a:PopSeed(), impact.craterPeakHeight, 0.4, baseN-elmosPerPixelP2, 1, 0.5, 1, a:PopSeed(), 16, 0.75)
+    a.peakNoise = NoisePatch(a.x, a.y, a.peakRadius, a:PopSeed(), impact.craterPeakHeight, 0.3, baseN-elmosPerPixelP2, 1, 0.5, 1, a:PopSeed(), 16, 0.75)
   end
 
   if impact.terraceSeeds then
@@ -1061,12 +1071,12 @@ function Crater:HeightPixel(x, y)
       rimRatioPower = mMix(rimRatioPower, smooth, impact.ageRatio)
     end
     height = rimHeight - ((1 - rimRatioPower)*impact.craterDepth)
+    --[[
     if self.geothermalNoise then
       if realDistSq < self.geothermalRadiusSq * 2 then
         local geoWobbly = self.geothermalNoise:Radial(angle) + 1
         local geoRadiusSqWobbled = self.geothermalRadiusSq * geoWobbly
         local geoRatio = mMin(1, (realDistSq / geoRadiusSqWobbled) ^ 0.5)
-        print(geoRatio)
         height = height - ((1-geoRatio) * world.geothermalDepth)
       end
     end
@@ -1076,6 +1086,7 @@ function Crater:HeightPixel(x, y)
         height = height - metal
       end
     end
+    ]]--
     if impact.complex then
       if self.peakNoise then
         local peak = self.peakNoise:Get(x, y)
@@ -1176,7 +1187,7 @@ function Crater:AttributePixel(x, y)
     if meteor.metal > 0 then
       for i, spot in pairs(self.metalSpots) do
         local metal = spot.noise:Get(x, y)
-        if metal > 0.1 then return 7 end
+        if metal > 1 then return 7 end
       end
     end
     if impact.complex then

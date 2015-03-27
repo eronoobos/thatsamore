@@ -398,11 +398,3 @@ function ResetDisplay(myWorld)
 end
 
 -- globals used here and to export:
-
-mapRulerNames = {
-  full = fullMapRuler,
-  l3dt = L3DTMapRuler,
-  height = heightMapRuler,
-  spring = heightMapRuler,
-  metal = metalMapRuler,
-}
