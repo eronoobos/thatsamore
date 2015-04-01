@@ -73,6 +73,7 @@ local WorldSaveBlackList = {
   "dispY",
   "dispX2",
   "dispY2",
+  "infoStr",
   "dispCraterRadius",
   "complexDiameter",
   "complexDiameterCutoff",
