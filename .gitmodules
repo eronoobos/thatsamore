@@ -1,0 +1,3 @@
+[submodule "LoonyModule"]
+	path = LoonyModule
+	url = https://github.com/eronoobos/LoonyModule

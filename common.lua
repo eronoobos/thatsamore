@@ -32,8 +32,6 @@ tInsert = table.insert
 tRemove = table.remove
 tSort = table.sort
 
-spEcho = print
-
 function mClamp(val, lower, upper)
     assert(val and lower and upper, "not very useful error message here")
     if lower > upper then lower, upper = upper, lower end -- swap if boundaries supplied the wrong way
@@ -247,96 +245,6 @@ end
 function FWriteClose()
   currentFile:close()
   print(currentFilename .. " written")
-end
-
-MirrorTypes = { "reflectionalx", "reflectionalz", "rotational", "none" }
-MirrorNames = {}
-for i, name in pairs(MirrorTypes) do
-  MirrorNames[name] = i
-end
-
-CommandWords = {
-  meteor = function(words, myWorld, uiCommand)
-    local radius = (words[5] or 10)
-    myWorld:AddMeteor(words[3], words[4], radius*2)
-  end,
-  shower = function(words, myWorld, uiCommand)
-    myWorld:MeteorShower(words[3], words[4], words[5], words[6], words[7], words[8], words[9], words[10], words[11], yesMare)
-  end,
-  clear = function(words, myWorld, uiCommand)
-    myWorld:Clear()
-  end,
-  height = function(words, myWorld, uiCommand)
-    myWorld:RenderHeightImage(uiCommand, mapRulerNames[words[3]] or heightMapRuler)
-  end,
-  attributes = function(words, myWorld, uiCommand)
-    myWorld:RenderAttributes(uiCommand, mapRulerNames[words[3]] or heightMapRuler)
-  end,
-  heightpreview = function(words, myWorld, uiCommand)
-    myWorld:RenderHeightImage(uiCommand, displayMapRuler)
-  end,
-  attributespreview = function(words, myWorld, uiCommand)
-    myWorld:RenderAttributes(uiCommand, displayMapRuler)
-  end,
-  metal = function(words, myWorld, uiCommand)
-    myWorld:RenderMetal(uiCommand)
-  end,
-  features = function(words, myWorld, uiCommand)
-    myWorld:RenderFeatures(uiCommand)
-  end,
-  maretoggle = function(words, myWorld, uiCommand)
-    yesMare = not yesMare
-    spEcho("yesMare is now", tostring(yesMare))
-  end,
-  mirror = function(words, myWorld, uiCommand)
-    myWorld.mirror = words[3]
-    spEcho("mirror: " .. myWorld.mirror)
-  end,
-  mirrornext = function(words, myWorld, uiCommand)
-    local mt = MirrorNames[myWorld.mirror]+1
-    if mt == #MirrorTypes+1 then mt = 1 end
-    myWorld.mirror = MirrorTypes[mt]
-    spEcho("mirror: " .. myWorld.mirror)
-  end,
-  save = function(words, myWorld, uiCommand)
-    myWorld:Save(words[3])
-  end,
-  load = function(words, myWorld, uiCommand)
-    FReadOpen("world" .. (words[3] or ""), "lua", function(str) myWorld:Load(str) end)
-  end,
-  resetages = function(words, myWorld, uiCommand)
-    myWorld:ResetMeteorAges()
-  end,
-  renderall = function(words, myWorld, uiCommand)
-    local mapRuler = mapRulerNames[words[3]] or heightMapRuler
-    myWorld:RenderFeatures()
-    myWorld:RenderMetal()
-    myWorld:RenderAttributes(nil, mapRuler)
-    myWorld:RenderHeightImage(uiCommand, mapRuler)
-  end,
-  exit = function(words, myWorld, uiCommand)
-    love.event.quit()
-  end,
-  quit = function(words, myWorld, uiCommand)
-    love.event.quit()
-  end,
-}
-
-function InterpretCommand(msg, myWorld)
-  if not msg then return end
-  if msg == "" then return end
-  msg = "loony " .. msg
-  local words = splitIntoWords(msg)
-  local where = words[1]
-  if where == "loony" then
-    local commandWord = words[2]
-    local uiCommand = string.sub(msg, 7)
-    if CommandWords[commandWord] then
-      CommandWords[commandWord](words, myWorld, uiCommand)
-      return true
-    end
-  end
-  return false
 end
 
 function RectXYWH(rect)

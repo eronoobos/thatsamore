@@ -1,5 +1,3 @@
-- change meteor.lua into a module
-	- renderer output: collect data within the frame function, and return it when the (new) RendererFrame() function is called. for image files it's return piecemeal, each frame, for other data it's only returned as a 2D table once the renderer is done
 - index meteors, to allow saving meteor mirroring
 - add UI to change meteor velocity, angle, and density
 - give slight randomness to metal spot arrangements so it doesn't look too perfect?
