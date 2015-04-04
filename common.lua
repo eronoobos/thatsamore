@@ -1,7 +1,7 @@
 require "class"
-require "perlin"
-require "meteor"
 require "config"
+
+Loony = require "LoonyModule/loony"
 
 pi = math.pi
 twicePi = math.pi * 2
@@ -27,7 +27,6 @@ mExp = math.exp
 mCeil = math.ceil
 mFloor = math.floor
 mAbs = math.abs
-mMix = math.mix
 
 tInsert = table.insert
 tRemove = table.remove
@@ -374,6 +373,35 @@ function PrintCommandLine(lineStr, pos, r, g, b)
   love.graphics.print(outStr, 8, y)
 end
 
+function RendererPrepareDraw(renderer)
+  local renderRatio = renderer.progress / renderer.totalProgress
+  renderer.renderFgRGB = { r = (1-renderRatio)*255, g = renderRatio*255, b = 0 }
+  renderer.renderProgressString = tostring(mFloor(renderRatio * 100)) .. "%" --renderProgress .. "/" .. renderTotal
+  local viewX, viewY = displayMapRuler.width, displayMapRuler.height
+  local rrr = renderRatioRect
+  local x1, y1 = rrr.x1*viewX, rrr.y1*viewY
+  local x2, y2 = rrr.x2*viewX, rrr.y2*viewY
+  local dx = x2 - x1
+  local dy = y2 - y1
+  renderer.renderBgRect = { x1 = x1-4, y1 = y1-4, x2 = x2+4, y2 = y2+4, w = dx+8, h = dy+8 }
+  renderer.renderFgRect = { x1 = x1, y1 = y1, x2 = x2, y2 = y1+(dx*renderRatio), w = dx*renderRatio, h = dy }
+end
+
+function PreviewHeights(heightBuf)
+  local canvas = love.graphics.newCanvas()
+  local heightDif = heightBuf.maxHeight - heightBuf.minHeight
+  canvas:renderTo(function()
+    for x = 1, heightBuf.w do
+      for y = 1, heightBuf.h do
+        local value = mFloor(((heightBuf.heights[x][y] - heightBuf.minHeight) / heightDif) * 255)
+        love.graphics.setColor(value, value, value)
+        love.graphics.point(x-1,y-1)
+      end
+    end
+  end)
+  return canvas
+end
+
 function ResetDisplay(myWorld)
   local dWidth, dHeight = love.window.getDesktopDimensions()
   for p = 0, 4 do
@@ -398,3 +426,4 @@ function ResetDisplay(myWorld)
 end
 
 -- globals used here and to export:
+

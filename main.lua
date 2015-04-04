@@ -1,5 +1,4 @@
 require "common"
--- local noise = require "fbm_noise"
 
 local myWorld
 local keyPress = {}
@@ -42,7 +41,7 @@ function love.load()
 	commandLineFont = love.graphics.newFont("fonts/SourceCodePro-Medium.ttf", 16)
 	printLineFont = love.graphics.newFont("fonts/SourceCodePro-Medium.ttf", 12)
 	love.keyboard.setKeyRepeat(true)
-	myWorld = World(nil, nil, 4, 1000)
+	myWorld = Loony.World(nil, nil, 4, 1000)
 	ResetDisplay(myWorld)
 end
 
@@ -391,15 +390,8 @@ function love.draw()
 end
 
 function love.update(dt)
-	local renderer = myWorld.renderers[1]
+	local renderer = Loony.RendererFrame(dt)
 	if renderer then
-		renderer:Frame()
-		if renderer.complete then
-		  -- spEcho(renderer.renderType, "complete", #myWorld.renderers)
-		  tRemove(myWorld.renderers, 1)
-		  renderer = nil
-		else
-			renderer:PrepareDraw()
-		end
+
 	end
 end
