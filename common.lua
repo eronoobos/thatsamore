@@ -1,7 +1,7 @@
-require "class"
 require "config"
-
 Loony = require "LoonyModule/loony"
+
+-- Loony = require "LoonyModule/loony"
 
 pi = math.pi
 twicePi = math.pi * 2
@@ -316,7 +316,7 @@ function ResetDisplay(myWorld)
     local elmosPerPixel = 2 ^ p
     local testWidth, testHeight = myWorld.mapSizeX / elmosPerPixel, myWorld.mapSizeZ / elmosPerPixel
     if testWidth <= dWidth and testHeight <= dHeight then
-      displayMapRuler = MapRuler(myWorld, elmosPerPixel, myWorld.mapSizeX / elmosPerPixel, myWorld.mapSizeZ / elmosPerPixel)
+      displayMapRuler = Loony.MapRuler(myWorld, elmosPerPixel, myWorld.mapSizeX / elmosPerPixel, myWorld.mapSizeZ / elmosPerPixel)
       break
     end
   end
@@ -333,5 +333,17 @@ function ResetDisplay(myWorld)
     maximumPrintLines = mFloor((displayMapRuler.height - 16) / printLineHeight) - 1
 end
 
--- globals used here and to export:
-
+function PrepareMeteorDraw(meteor)
+  meteor.rgb = { 0, (1-meteor.impact.ageRatio)*255, meteor.impact.ageRatio*255 }
+  meteor.dispX, meteor.dispY = displayMapRuler:XZtoXY(meteor.sx, meteor.sz)
+  meteor.dispCraterRadius = mCeil(meteor.impact.craterRadius / displayMapRuler.elmosPerPixel)
+  for r, ramp in pairs(meteor.ramps) do
+    ramp.dispX2, ramp.dispY2 = CirclePos(meteor.dispX, meteor.dispY, meteor.dispCraterRadius, ramp.angle)
+    meteor.ramps[r] = ramp
+  end
+  meteor.infoStr = meteor.dispX .. ", " .. meteor.dispY .. "\n" .. meteor.dispCraterRadius .. " radius" .. "\n" .. meteor.metal .. " metal" .. "\n" .. meteor.age .. " age" .. "\n" .. meteor.seedSeed .. " seed"
+  if meteor.geothermal then meteor.infoStr = meteor.infoStr .. "\ngeothermal" end
+  if meteor.impact and meteor.impact.blastNoise then meteor.infoStr = meteor.infoStr .. "\nblast rays" end
+  meteor.infoX = meteor.dispX - (meteor.dispCraterRadius * 1.5)
+  meteor.infoY = meteor.dispY - (meteor.dispCraterRadius * 1.5)
+end

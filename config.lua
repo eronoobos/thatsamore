@@ -1,11 +1,18 @@
 outDir = "output/"
-yesMare = false -- send huge melt-floor-generating meteors before a shower?
-doNotStore = false
 
-Game = {
-	squareSize = 8,
-	gravity = 130,
-	mapHardness = 100,
+AmoreComWords = {
+	heightpreview = function(words, myWorld, uiCommand)
+		myWorld:RenderHeightImage(uiCommand, displayMapRuler)
+	end,
+	attributespreview = function(words, myWorld, uiCommand)
+		myWorld:RenderAttributes(uiCommand, displayMapRuler)
+	end,
+	exit = function(words, myWorld, uiCommand)
+		love.event.quit()
+	end,
+	quit = function(words, myWorld, uiCommand)
+		love.event.quit()
+	end,
 }
 
 commandKeys = {
