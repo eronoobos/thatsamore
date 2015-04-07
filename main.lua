@@ -43,6 +43,9 @@ function love.load()
 	love.keyboard.setKeyRepeat(true)
 	myWorld = Loony.World(nil, nil, 4, 1000)
 	ResetDisplay(myWorld)
+	for word, comFunc in pairs(AmoreComWords) do
+		Loony.SetCommandWord(word, comFunc)
+	end
 end
 
 function love.quit()
@@ -55,7 +58,7 @@ function love.textinput(t)
 	elseif commandBuffer then
 		commandBuffer = commandBuffer .. t
 	else
-		if commandKeys[t] then InterpretCommand(commandKeys[t], myWorld) end
+		if commandKeys[t] then myWorld:InterpretCommand(commandKeys[t], myWorld) end
 	end
 end
 
@@ -73,7 +76,7 @@ function love.keypressed(key, isRepeat)
 	if key == "return" then
 		if commandBuffer then
 			if commandBuffer ~= "" then
-				local validCommand = InterpretCommand(commandBuffer, myWorld)
+				local validCommand = myWorld:InterpretCommand(commandBuffer, myWorld)
 				if validCommand then tInsert(commandHistory, commandBuffer) end
 			end
 			commandBuffer = nil
@@ -91,6 +94,7 @@ function love.keypressed(key, isRepeat)
 				local result = tonumber(worldEditInput) or worldEditInput == "true" or worldEditInput
 				myWorld[worldEditKey] = result
 				myWorld:Calculate()
+				ResetDisplay(myWorld)
 				worldEditInput = nil
 			else
 				worldEditInput = ""
@@ -237,6 +241,7 @@ function love.mousemoved(x, y, dx, dy)
 			local sx, sz = displayMapRuler:XYtoXZ(mx, my)
 			-- print(mp.x, mp.y, mdx, mdy, mx, my, sx, sz)
 			selectedMeteor:Move(sx, sz)
+			PrepareMeteorDraw(selectedMeteor)
 		elseif mousePress["r"] then
 			local mp = mousePress["r"]
 			mp.origMeteorDispRadius = mp.origMeteorDispRadius or selectedMeteor.dispCraterRadius+0
@@ -260,7 +265,7 @@ function love.draw()
 	end
 	if myWorld and not previewCanvas then
 		for i, m in pairs(myWorld.meteors) do
-			if not m.rgb then m:PrepareDraw() end
+			if not m.rgb then PrepareMeteorDraw(m) end
 			love.graphics.setColor(m.rgb[1], m.rgb[2], m.rgb[3])
 			local segments = 6
 			if m.impact and m.impact.complex then segments = 12 end
@@ -284,7 +289,7 @@ function love.draw()
 				love.graphics.setLineWidth(7)
 				love.graphics.setColor(255, 127, 0)
 				for r, ramp in pairs(m.ramps) do
-					if not ramp.dispX2 then m:PrepareDraw() end
+					if not ramp.dispX2 then PrepareDraw(m) end
 					love.graphics.line(m.dispX, m.dispY, ramp.dispX2, ramp.dispY2)
 				end
 			end
@@ -390,8 +395,15 @@ function love.draw()
 end
 
 function love.update(dt)
-	local renderer = Loony.RendererFrame(dt)
+	local renderer = myWorld:RendererFrame(dt)
 	if renderer then
-
+		PrepareRendererDraw(renderer)
+		if renderer.complete then
+			if renderer.uiCommand == "heightpreview" then
+				previewCanvas = PreviewHeights(renderer.heightBuf)
+			elseif renderer.uiCommand == "attributespreview" then
+				previewCanvas = PreviewAttributes(renderer.data)
+			end
+		end
 	end
 end

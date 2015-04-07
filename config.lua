@@ -2,7 +2,7 @@ outDir = "output/"
 
 AmoreComWords = {
 	heightpreview = function(words, myWorld, uiCommand)
-		myWorld:RenderHeightImage(uiCommand, displayMapRuler)
+		myWorld:RenderHeight(uiCommand, displayMapRuler)
 	end,
 	attributespreview = function(words, myWorld, uiCommand)
 		myWorld:RenderAttributes(uiCommand, displayMapRuler)

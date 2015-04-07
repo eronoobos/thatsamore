@@ -310,6 +310,21 @@ function PreviewHeights(heightBuf)
   return canvas
 end
 
+function PreviewAttributes(attributesData)
+  local ARGB = Loony.GetAttributeRGB
+  local canvas = love.graphics.newCanvas()
+  canvas:renderTo(function()
+    for x, yy in ipairs(attributesData) do
+      for y, attribute in ipairs(yy) do
+        local r, g, b = ARGB(attribute)
+        love.graphics.setColor(r, g, b)
+        love.graphics.point(x-1,y-1)
+      end
+    end
+  end)
+  return canvas
+end
+
 function ResetDisplay(myWorld)
   local dWidth, dHeight = love.window.getDesktopDimensions()
   for p = 0, 4 do
@@ -346,4 +361,18 @@ function PrepareMeteorDraw(meteor)
   if meteor.impact and meteor.impact.blastNoise then meteor.infoStr = meteor.infoStr .. "\nblast rays" end
   meteor.infoX = meteor.dispX - (meteor.dispCraterRadius * 1.5)
   meteor.infoY = meteor.dispY - (meteor.dispCraterRadius * 1.5)
+end
+
+function PrepareRendererDraw(renderer)
+  local renderRatio = renderer.progress / renderer.totalProgress
+  renderer.renderFgRGB = { r = (1-renderRatio)*255, g = renderRatio*255, b = 0 }
+  renderer.renderProgressString = tostring(mFloor(renderRatio * 100)) .. "%" --renderProgress .. "/" .. renderTotal
+  local viewX, viewY = displayMapRuler.width, displayMapRuler.height
+  local rrr = renderRatioRect
+  local x1, y1 = rrr.x1*viewX, rrr.y1*viewY
+  local x2, y2 = rrr.x2*viewX, rrr.y2*viewY
+  local dx = x2 - x1
+  local dy = y2 - y1
+  renderer.renderBgRect = { x1 = x1-4, y1 = y1-4, x2 = x2+4, y2 = y2+4, w = dx+8, h = dy+8 }
+  renderer.renderFgRect = { x1 = x1, y1 = y1, x2 = x2, y2 = y1+(dx*renderRatio), w = dx*renderRatio, h = dy }
 end
