@@ -2,10 +2,10 @@ outDir = "output/"
 
 AmoreComWords = {
 	heightpreview = function(words, myWorld, uiCommand)
-		myWorld:RenderHeight(uiCommand, displayMapRuler)
+		myWorld:RenderHeight(displayMapRuler, uiCommand)
 	end,
 	attributespreview = function(words, myWorld, uiCommand)
-		myWorld:RenderAttributes(uiCommand, displayMapRuler)
+		myWorld:RenderAttributes(displayMapRuler, "data", uiCommand)
 	end,
 	exit = function(words, myWorld, uiCommand)
 		love.event.quit()
@@ -13,6 +13,18 @@ AmoreComWords = {
 	quit = function(words, myWorld, uiCommand)
 		love.event.quit()
 	end,
+}
+
+AmoreWorldSaveBlacklist = {
+  "rgb",
+  "dispX",
+  "dispY",
+  "dispX2",
+  "dispY2",
+  "infoStr",
+  "infoX",
+  "infoY",
+  "dispCraterRadius",
 }
 
 commandKeys = {

@@ -49,6 +49,9 @@ function love.load()
 	for word, comFunc in pairs(AmoreComWords) do
 		Loony.SetCommandWord(word, comFunc)
 	end
+	for i, k in pairs(AmoreWorldSaveBlacklist) do
+		Loony.AddToWorldSaveBlacklist(k)
+	end
 end
 
 function love.quit()
@@ -244,7 +247,6 @@ function love.mousemoved(x, y, dx, dy)
 			local sx, sz = displayMapRuler:XYtoXZ(mx, my)
 			-- print(mp.x, mp.y, mdx, mdy, mx, my, sx, sz)
 			selectedMeteor:Move(sx, sz)
-			PrepareMeteorDraw(selectedMeteor)
 		elseif mousePress["r"] then
 			local mp = mousePress["r"]
 			mp.origMeteorDispRadius = mp.origMeteorDispRadius or selectedMeteor.dispCraterRadius+0
@@ -405,6 +407,10 @@ end
 
 
 -- Loony callins -------------------------------------------------------------
+
+function Loony.UpdateMeteor(meteor)
+	PrepareMeteorDraw(meteor)
+end
 
 function Loony.UpdateWorld(myWorld)
 	ResetDisplay(myWorld)
