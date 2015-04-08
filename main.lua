@@ -31,6 +31,9 @@ function print(...)
 	realPrint(...)
 end
 
+
+-- love callins --------------------------------------------------------------
+
 function love.conf(t)
 	t.identity = 'thatsamore'
 end
@@ -395,15 +398,28 @@ function love.draw()
 end
 
 function love.update(dt)
-	local renderer = myWorld:RendererFrame(dt)
-	if renderer then
-		PrepareRendererDraw(renderer)
-		if renderer.complete then
-			if renderer.uiCommand == "heightpreview" then
-				previewCanvas = PreviewHeights(renderer.heightBuf)
-			elseif renderer.uiCommand == "attributespreview" then
-				previewCanvas = PreviewAttributes(renderer.data)
-			end
-		end
+	myWorld:RendererFrame(dt)
+end
+
+-- end love callins ----------------------------------------------------------
+
+
+-- Loony callins -------------------------------------------------------------
+
+function Loony.UpdateWorld(myWorld)
+	ResetDisplay(myWorld)
+end
+
+function Loony.FrameRenderer(renderer)
+	PrepareRendererDraw(renderer)
+end
+
+function Loony.CompleteRenderer(renderer)
+	if renderer.uiCommand == "heightpreview" then
+		previewCanvas = PreviewHeights(renderer.heightBuf)
+	elseif renderer.uiCommand == "attributespreview" then
+		previewCanvas = PreviewAttributes(renderer.data)
 	end
 end
+
+-- end Loony callins ---------------------------------------------------------
