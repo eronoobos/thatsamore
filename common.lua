@@ -1,4 +1,18 @@
 require "config"
+
+printLines = {}
+realPrint = print
+function print(...)
+  local line = ""
+  for i, str in ipairs({...}) do
+    if i > 1 then line = line .. "\t" end
+    line = line .. tostring(str)
+  end
+  tInsert(printLines, line)
+  if logFile then logFile:write(line .. "\n") end
+  realPrint(...)
+end
+
 Loony = require "LoonyModule/loony"
 
 -- Loony = require "LoonyModule/loony"
@@ -356,7 +370,7 @@ function PrepareMeteorDraw(meteor)
     ramp.dispX2, ramp.dispY2 = CirclePos(meteor.dispX, meteor.dispY, meteor.dispCraterRadius, ramp.angle)
     meteor.ramps[r] = ramp
   end
-  meteor.infoStr = meteor.dispX .. ", " .. meteor.dispY .. "\n" .. meteor.dispCraterRadius .. " radius" .. "\n" .. meteor.metal .. " metal" .. "\n" .. meteor.age .. " age" .. "\n" .. meteor.seedSeed .. " seed"
+  meteor.infoStr = meteor.dispX .. ", " .. meteor.dispY .. "\n" .. mFloor(meteor.impact.craterRadius) .. " radius" .. "\n" .. meteor.metal .. " metal" .. "\n" .. meteor.age .. " age" .. "\n" .. meteor.seedSeed .. " seed"
   if meteor.geothermal then meteor.infoStr = meteor.infoStr .. "\ngeothermal" end
   if meteor.impact and meteor.impact.blastNoise then meteor.infoStr = meteor.infoStr .. "\nblast rays" end
   meteor.infoX = meteor.dispX - (meteor.dispCraterRadius * 1.5)

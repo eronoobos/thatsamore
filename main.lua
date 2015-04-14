@@ -18,20 +18,6 @@ local worldEditMode
 local worldEditKey
 local worldEditInput
 
-printLines = {}
-realPrint = print
-function print(...)
-	local line = ""
-	for i, str in ipairs({...}) do
-		if i > 1 then line = line .. "\t" end
-		line = line .. tostring(str)
-	end
-	tInsert(printLines, line)
-	if logFile then logFile:write(line .. "\n") end
-	realPrint(...)
-end
-
-
 -- love callins --------------------------------------------------------------
 
 function love.conf(t)
